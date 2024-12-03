@@ -11,7 +11,7 @@ struct Piece{
     length: usize,
 }
 
-struct PieceTable{
+pub struct PieceTable{
     read: String,
     add: String,
     pieces: Vec<Piece>,
@@ -19,6 +19,30 @@ struct PieceTable{
 }
 
 impl PieceTable{
+
+    pub fn new() -> PieceTable {
+        PieceTable {
+            read: String::from(""),
+            add: String::from(""),
+            pieces: vec![],
+            length: 0,
+        }
+    }
+
+    pub fn assign_buffer(&mut self, str: String){
+        if str.len() > 0{
+            self.pieces.push(Piece{
+                buffer: Buffer::Read,
+                offset: 0,
+                length: str.len()
+            })
+        }
+
+        self.length += str.len();
+        self.read = str;
+    }
+
+
     pub fn get_piece_by_index(&self, idx: usize) -> Result<Vec<usize>, i8>{
         let mut offset: usize = idx;
         for i in 0..self.pieces.len(){
@@ -61,6 +85,7 @@ impl PieceTable{
             }
         ].into_iter().filter(|piece| piece.length > 0).collect();
 
+        self.add += &text;
         let mut pieces = self.pieces[..piece_and_offset[0]].to_vec();
         pieces.extend(pieces_vector.iter());
         pieces.extend(self.pieces[piece_and_offset[0]+1..].iter());
@@ -73,18 +98,21 @@ impl PieceTable{
         };
 
         let start_piece_and_offset: Vec<usize> = self.get_piece_by_index(idx).unwrap();
-        let stop_piece_and_offset: Vec<usize> = self.get_piece_by_index(idx + length).unwrap();
+        let stop_piece_and_offset: Vec<usize> = match self.get_piece_by_index(idx + length) {
+            Ok(value) => value,
+            Err(_) => start_piece_and_offset.clone(),
+        };
         self.length -= length;
 
+        print!("{}, {}\n", start_piece_and_offset[0], start_piece_and_offset[1]);
+        print!("{}, {}\n", stop_piece_and_offset[0], stop_piece_and_offset[1]);
         if start_piece_and_offset[0] == stop_piece_and_offset[0]{
-            let mut piece = self.pieces[start_piece_and_offset[0]];
-
             if start_piece_and_offset[1] == 0{
-                piece.offset += length;
-                piece.length -= length;
+                self.pieces[start_piece_and_offset[0]].offset += length;
+                self.pieces[start_piece_and_offset[0]].length -= length;
                 return
-            }else if stop_piece_and_offset[1] == piece.length{
-                piece.length -= length;
+            }else if stop_piece_and_offset[1] == self.pieces[start_piece_and_offset[0]].length{
+                self.pieces[start_piece_and_offset[0]].length -= length;
                 return
             } 
         }
@@ -94,13 +122,13 @@ impl PieceTable{
 
         let delete_pieces: Vec<Piece> = vec![
             Piece{
-                buffer: Buffer::Add,
+                buffer: start_piece.buffer,
                 offset: start_piece.offset,
                 length: start_piece_and_offset[1]
             },
             Piece{
-                buffer: Buffer::Add,
-                offset: stop_piece.offset,
+                buffer: stop_piece.buffer,
+                offset: stop_piece.offset + stop_piece_and_offset[1],
                 length: stop_piece.length - stop_piece_and_offset[1]
             }
         ].into_iter().filter(|piece| piece.length > 0).collect();
@@ -109,7 +137,18 @@ impl PieceTable{
 
         let mut pieces: Vec<Piece> = self.pieces[..start_piece_and_offset[0]].to_vec();
         pieces.extend(delete_pieces.iter());
-        pieces.extend(self.pieces[start_piece_and_offset[0]+delete_cnt..].iter());
+        pieces.extend(self.pieces[(start_piece_and_offset[0]+delete_cnt+1)..].iter());
+        self.pieces = pieces;
+    }
+
+    pub fn push(&mut self, text: String){
+        self.insert(self.length, text);
+    }
+
+    pub fn pop(&mut self){
+        let pieces_len = self.pieces.len();
+        self.pieces[pieces_len - 1].length -= 1;
+        self.length -= 1;
     }
 
     pub fn get_text(&self) -> String{
