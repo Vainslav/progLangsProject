@@ -60,10 +60,13 @@ impl PieceTable{
         let piece_and_offset: Vec<usize> = self.get_piece_by_index(idx).expect("I hape it won't happen");
         let cur_piece = &mut self.pieces[piece_and_offset[0]];
         self.length += text.len();
+        let add_len = self.add.len();
+        self.add += &text;
 
         if cur_piece.buffer == Buffer::Add{
             if cur_piece.length + cur_piece.offset == self.add.len() && cur_piece.length == piece_and_offset[1]{
                 cur_piece.length += text.len();
+                return
             }
         }
 
@@ -75,7 +78,7 @@ impl PieceTable{
             },
             Piece{
                 buffer: Buffer::Add,
-                offset: self.add.len(),
+                offset: add_len,
                 length: text.len()
             },
             Piece{
@@ -85,7 +88,7 @@ impl PieceTable{
             }
         ].into_iter().filter(|piece| piece.length > 0).collect();
 
-        self.add += &text;
+        
         let mut pieces = self.pieces[..piece_and_offset[0]].to_vec();
         pieces.extend(pieces_vector.iter());
         pieces.extend(self.pieces[piece_and_offset[0]+1..].iter());
@@ -146,6 +149,9 @@ impl PieceTable{
     pub fn pop(&mut self){
         let pieces_len = self.pieces.len();
         self.pieces[pieces_len - 1].length -= 1;
+        if self.pieces[pieces_len - 1].length == 0{
+            self.pieces.pop();
+        }
         self.length -= 1;
     }
 
@@ -160,5 +166,9 @@ impl PieceTable{
             }
         }
         return text;
+    }
+
+    pub fn get_length(&self) -> usize{
+        self.length
     }
 }

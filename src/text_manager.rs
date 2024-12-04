@@ -5,6 +5,7 @@ use std::io::{Write, stdout};
 use termion::event::Key;
 use termion::input::TermRead;
 use termion::screen::IntoAlternateScreen;
+use std::fs;
 use termion::raw::IntoRawMode;
 
 use crate::piece_table::PieceTable;
@@ -67,14 +68,51 @@ impl TextManager{
                     self.reload();
                 }
                 Key::Backspace => {
-                    self.dec_x();
-                    self.document.pop();
+                    let idx = self.get_document_index(&self.cursor_pos);
+                    if idx > self.document.get_length(){
+                        self.document.pop();
+                    }else{
+                        self.dec_x();
+                        self.document.remove(self.get_document_index(&self.cursor_pos), 1);
+                    }
                     self.reload();
                 }
-                _=> {}
+                Key::Delete => {
+                    let idx = self.get_document_index(&self.cursor_pos);
+                    if idx > self.document.get_length(){
+                        continue;
+                    }
+                    self.document.remove(idx, 1);
+                    self.dec_x();
+                    self.reload();
+                }
+                Key::Char(ch)=> {
+                    let idx = self.get_document_index(&self.cursor_pos);
+                    if idx > self.document.get_length(){
+                        self.document.push(ch.to_string());
+                    }
+                    else{
+                        self.document.insert(self.get_document_index(&self.cursor_pos), ch.to_string());
+                        self.inc_x();
+                    }
+                    self.reload();
+                }
+                _ => {}
             }
+            fs::write("input_text", self.document.get_text()).expect("Unable to write file");
             stdout.flush().unwrap();
         }
+    }
+
+    fn get_document_index(&self, cursor: &CursorPos) -> usize{
+        let mut idx: usize = 0;
+        for (i, line) in self.document.get_text().lines().enumerate(){
+            if i == cursor.y - 1{
+                break
+            } 
+            idx += line.len() + 1;
+        }
+        return idx + cursor.x - 1
     }
 
     fn dec_x(&mut self){
