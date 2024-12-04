@@ -1,19 +1,16 @@
 use termion::raw::IntoRawMode;
 use std::io::{Write, stdout};
 use termion::clear;
+use termion::screen::IntoAlternateScreen;
+use std::thread::{self, sleep};
+
 
 mod piece_table;
-// use std::env;
+mod text_manager;
+use crate::text_manager::TextManager;
+
 
 fn main() {
-    let hello = String::from("Hello ");
-    let mut piece_table = piece_table::PieceTable::new();
-    piece_table.assign_buffer(hello);
-    let world = String::from("World!");
-    piece_table.push( world);
-    print!("{}\n", piece_table.get_text());
-    piece_table.pop();
-    print!("{}\n", piece_table.get_text());
-    piece_table.remove(1, 5);
-    print!("{}", piece_table.get_text());
+    let mut text_manager = TextManager::init("input_text");
+    text_manager.run();
 }

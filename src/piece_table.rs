@@ -104,8 +104,6 @@ impl PieceTable{
         };
         self.length -= length;
 
-        print!("{}, {}\n", start_piece_and_offset[0], start_piece_and_offset[1]);
-        print!("{}, {}\n", stop_piece_and_offset[0], stop_piece_and_offset[1]);
         if start_piece_and_offset[0] == stop_piece_and_offset[0]{
             if start_piece_and_offset[1] == 0{
                 self.pieces[start_piece_and_offset[0]].offset += length;
