@@ -12,20 +12,22 @@ struct Piece{
 }
 
 pub struct PieceTable{
-    read: String,
-    add: String,
+    read: Vec<char>,
+    add: Vec<char>,
     pieces: Vec<Piece>,
     length: usize,
+    num_lines: usize,
 }
 
 impl PieceTable{
 
     pub fn new() -> PieceTable {
         PieceTable {
-            read: String::from(""),
-            add: String::from(""),
+            read: vec![],
+            add: vec![],
             pieces: vec![],
             length: 0,
+            num_lines: 0,
         }
     }
 
@@ -34,12 +36,15 @@ impl PieceTable{
             self.pieces.push(Piece{
                 buffer: Buffer::Read,
                 offset: 0,
-                length: str.len()
+                length: str.chars().count()
             })
         }
 
-        self.length += str.len();
-        self.read = str;
+        self.length += str.chars().count();
+        for ch in str.chars(){
+            self.read.push(ch);
+        }
+        self.num_lines += str.split('\n').count();
     }
 
 
@@ -59,9 +64,12 @@ impl PieceTable{
 
         let piece_and_offset: Vec<usize> = self.get_piece_by_index(idx).expect("I hape it won't happen");
         let cur_piece = &mut self.pieces[piece_and_offset[0]];
-        self.length += text.len();
+        self.length += text.chars().count();
         let add_len = self.add.len();
-        self.add += &text;
+        for ch in text.chars(){
+            self.add.push(ch);
+        }
+        self.num_lines += &text.split('\n').count();
 
         if cur_piece.buffer == Buffer::Add{
             if cur_piece.length + cur_piece.offset == self.add.len() && cur_piece.length == piece_and_offset[1]{
@@ -79,7 +87,7 @@ impl PieceTable{
             Piece{
                 buffer: Buffer::Add,
                 offset: add_len,
-                length: text.len()
+                length: text.chars().count()
             },
             Piece{
                 buffer: cur_piece.buffer,
@@ -159,10 +167,14 @@ impl PieceTable{
         let mut text: String = String::from("");
         for piece in self.pieces.iter(){
             if piece.buffer == Buffer::Add{
-                text += &self.add[piece.offset..piece.offset+piece.length];
+                for i in piece.offset..piece.offset+piece.length{
+                    text += &self.add[i].to_string();
+                }
             }
             else{
-                text += &self.read[piece.offset..piece.offset+piece.length];
+                for i in piece.offset..piece.offset+piece.length{
+                    text += &self.read[i].to_string();
+                }
             }
         }
         return text;
@@ -170,5 +182,9 @@ impl PieceTable{
 
     pub fn get_length(&self) -> usize{
         self.length
+    }
+
+    pub fn get_num_lines(&self) -> usize{
+        self.num_lines
     }
 }

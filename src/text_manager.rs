@@ -1,6 +1,7 @@
 use std::fs::read_to_string;
 use std::io::stdin;
-use std::io::{Write, stdout};
+use std::io::{Write, stdout, Error};
+
 
 use termion::event::Key;
 use termion::input::TermRead;
@@ -22,22 +23,21 @@ pub struct TextManager{
 
 
 impl TextManager{
-    pub fn init(file: &str) -> TextManager{
+    pub fn init(file: &str) -> Result<TextManager, Error>{
         let mut piece_table = PieceTable::new();
-        let text_from_file = read_to_string(file).expect("File not found");
+        let text_from_file = read_to_string(file)?;
         piece_table.assign_buffer(text_from_file);
-        TextManager{
+        Ok(TextManager{
             document: piece_table,
             cursor_pos: CursorPos{
                 x: 1,
                 y: 1
             }
-        }
+        })
     }
 
     pub fn reload(&self){
         print!("{}{}", termion::clear::All, termion::cursor::Goto(1,1));
-        //Терминал в raw mode не считывает каноничные лайн брейки нужно рестнуть курсор в начало строки
         print!("{}", self.document.get_text().replace("\n", "\n\r"));
         print!("{}", termion::cursor::Goto(self.cursor_pos.x as u16, self.cursor_pos.y as u16))
     }
@@ -69,10 +69,12 @@ impl TextManager{
                 }
                 Key::Backspace => {
                     let idx = self.get_document_index(&self.cursor_pos);
-                    if idx > self.document.get_length(){
-                        self.document.pop();
-                    }else{
-                        self.dec_x();
+                    if self.cursor_pos.x == 1{
+                        continue;
+                    }
+                    self.dec_x();
+                    if idx > self.document.get_length(){}
+                    else{
                         self.document.remove(self.get_document_index(&self.cursor_pos), 1);
                     }
                     self.reload();
@@ -83,25 +85,28 @@ impl TextManager{
                         continue;
                     }
                     self.document.remove(idx, 1);
-                    self.dec_x();
                     self.reload();
                 }
                 Key::Char(ch)=> {
                     let idx = self.get_document_index(&self.cursor_pos);
-                    if idx > self.document.get_length(){
-                        self.document.push(ch.to_string());
-                    }
+                    if idx > self.document.get_length(){}
                     else{
                         self.document.insert(self.get_document_index(&self.cursor_pos), ch.to_string());
-                        self.inc_x();
+                        if ch == '\n'{
+                            self.inc_y();
+                            self.cursor_pos.x = 0;
+                        }
+                        else{
+                            self.inc_x();
+                        }
                     }
                     self.reload();
                 }
                 _ => {}
             }
-            fs::write("input_text", self.document.get_text()).expect("Unable to write file");
             stdout.flush().unwrap();
         }
+        fs::write("input_text", self.document.get_text()).expect("Unable to write file");
     }
 
     fn get_document_index(&self, cursor: &CursorPos) -> usize{
@@ -110,7 +115,7 @@ impl TextManager{
             if i == cursor.y - 1{
                 break
             } 
-            idx += line.len() + 1;
+            idx += line.chars().count() + 1;
         }
         return idx + cursor.x - 1
     }
@@ -127,6 +132,9 @@ impl TextManager{
     }
 
     fn inc_y(&mut self){
+        if self.cursor_pos.y - 1 == self.document.get_num_lines(){
+            return;
+        } 
         self.cursor_pos.y += 1
     }
 
