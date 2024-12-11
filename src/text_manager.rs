@@ -1,6 +1,7 @@
 use std::fs::read_to_string;
 use std::io::stdin;
 use std::io::{Write, stdout, Error};
+use std::cmp::{min, max};
 
 
 use termion::event::Key;
@@ -10,6 +11,7 @@ use std::fs;
 use termion::raw::IntoRawMode;
 
 use crate::piece_table::PieceTable;
+use crate::lines_handler::LinesHandler;
 
 struct CursorPos{
     x: usize,
@@ -19,6 +21,7 @@ struct CursorPos{
 pub struct TextManager{
     document: PieceTable,
     cursor_pos: CursorPos,
+    lines_handler: LinesHandler,
 }
 
 
@@ -26,13 +29,15 @@ impl TextManager{
     pub fn init(file: &str) -> Result<TextManager, Error>{
         let mut piece_table = PieceTable::new();
         let text_from_file = read_to_string(file)?;
+        let lines_handler = LinesHandler::init(&text_from_file);
         piece_table.assign_buffer(text_from_file);
         Ok(TextManager{
             document: piece_table,
             cursor_pos: CursorPos{
                 x: 1,
                 y: 1
-            }
+            },
+            lines_handler: lines_handler,
         })
     }
 
@@ -61,22 +66,28 @@ impl TextManager{
                 }
                 Key::Up => {
                     self.dec_y();
+                    self.cursor_pos.x = min(self.cursor_pos.x, self.get_line_length(self.cursor_pos.y - 1) + 1);
                     self.reload();
                 }
                 Key::Down => {
                     self.inc_y();
+                    self.cursor_pos.x = min(self.cursor_pos.x, self.get_line_length(self.cursor_pos.y - 1) + 1);
                     self.reload();
                 }
                 Key::Backspace => {
                     let idx = self.get_document_index(&self.cursor_pos);
-                    if self.cursor_pos.x == 1{
+                    if self.cursor_pos.x == 0{
                         continue;
                     }
                     self.dec_x();
                     if idx > self.document.get_length(){}
+                    else if self.cursor_pos.x == 1 {
+                        self.document.remove(self.get_document_index(&self.cursor_pos) - 1, 1);
+                    }
                     else{
                         self.document.remove(self.get_document_index(&self.cursor_pos), 1);
                     }
+                    self.update_lines_lenghts();
                     self.reload();
                 }
                 Key::Delete => {
@@ -85,6 +96,7 @@ impl TextManager{
                         continue;
                     }
                     self.document.remove(idx, 1);
+                    self.update_lines_lenghts();
                     self.reload();
                 }
                 Key::Char(ch)=> {
@@ -93,10 +105,12 @@ impl TextManager{
                     else{
                         self.document.insert(self.get_document_index(&self.cursor_pos), ch.to_string());
                         if ch == '\n'{
+                            self.update_lines_lenghts();
                             self.inc_y();
-                            self.cursor_pos.x = 0;
+                            self.cursor_pos.x = 1;
                         }
                         else{
+                            self.increment_lenght(self.cursor_pos.y - 1);
                             self.inc_x();
                         }
                     }
@@ -117,31 +131,54 @@ impl TextManager{
             } 
             idx += line.chars().count() + 1;
         }
-        return idx + cursor.x - 1
+        idx + cursor.x - 1
     }
 
     fn dec_x(&mut self){
-        if self.cursor_pos.x == 1{
+        if self.cursor_pos.x == 1 && self.cursor_pos.y != 1{
+            self.dec_y();
+            self.cursor_pos.x = self.get_line_length(self.cursor_pos.y - 1) + 1;
             return
         }
-        self.cursor_pos.x -= 1
+        self.cursor_pos.x = max(self.cursor_pos.x - 1, 1); 
     }
 
     fn inc_x(&mut self){
-        self.cursor_pos.x += 1
+        if self.cursor_pos.x == self.get_line_length(self.cursor_pos.y - 1) + 1 && self.cursor_pos.y != self.get_num_lines(){
+            self.inc_y();
+            self.cursor_pos.x = 1;
+        }else{
+            self.cursor_pos.x = min(self.cursor_pos.x + 1, self.get_line_length(self.cursor_pos.y - 1) + 1)
+        }
     }
 
     fn inc_y(&mut self){
-        if self.cursor_pos.y - 1 == self.document.get_num_lines(){
+        if self.cursor_pos.y == self.get_num_lines(){
             return;
         } 
-        self.cursor_pos.y += 1
+        self.cursor_pos.y += 1;
     }
 
     fn dec_y(&mut self){
         if self.cursor_pos.y == 1{
             return
         }
-        self.cursor_pos.y -= 1
+        self.cursor_pos.y -= 1;
+    }
+
+    fn update_lines_lenghts(&mut self){
+        self.lines_handler.recalculate_lenghts(self.document.get_text());
+    }
+
+    fn increment_lenght(&mut self, line: usize){
+        self.lines_handler.increment_lenght(line);
+    }
+
+    fn get_line_length(&self, line: usize) -> usize{
+        self.lines_handler.get_line_lenght(line)
+    }
+
+    fn get_num_lines(&self) -> usize{
+        self.lines_handler.get_num_lines()
     }
 }

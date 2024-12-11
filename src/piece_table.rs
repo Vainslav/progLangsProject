@@ -65,11 +65,11 @@ impl PieceTable{
         let piece_and_offset: Vec<usize> = self.get_piece_by_index(idx).expect("I hape it won't happen");
         let cur_piece = &mut self.pieces[piece_and_offset[0]];
         self.length += text.chars().count();
+        self.num_lines += text.split("\n").count();
         let add_len = self.add.len();
         for ch in text.chars(){
             self.add.push(ch);
         }
-        self.num_lines += &text.split('\n').count();
 
         if cur_piece.buffer == Buffer::Add{
             if cur_piece.length + cur_piece.offset == self.add.len() && cur_piece.length == piece_and_offset[1]{
@@ -182,9 +182,5 @@ impl PieceTable{
 
     pub fn get_length(&self) -> usize{
         self.length
-    }
-
-    pub fn get_num_lines(&self) -> usize{
-        self.num_lines
     }
 }
