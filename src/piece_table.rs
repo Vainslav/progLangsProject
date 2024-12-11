@@ -11,6 +11,7 @@ struct Piece{
     length: usize,
 }
 
+#[derive(Clone)]
 pub struct PieceTable{
     read: Vec<char>,
     add: Vec<char>,

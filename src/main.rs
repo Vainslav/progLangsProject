@@ -9,7 +9,7 @@ use std::io::ErrorKind::NotFound;
 fn main() -> Result<(), String>{
     let args: Vec<String> = args().collect();
     if args.len() != 2{
-        panic!("bad args");
+        Err("File not specified".to_string())?;
     }
     let mut text_manager = match TextManager::init(&args[1]){
         Ok(text_manager) => text_manager,
