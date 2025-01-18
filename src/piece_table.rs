@@ -4,11 +4,21 @@ enum Buffer{
     Add
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 struct Piece{
     buffer: Buffer,
     offset: usize,
     length: usize,
+}
+
+impl Piece{
+    pub fn get_string(&self, piece_table:&PieceTable) -> String{
+        if self.buffer == Buffer::Add{
+            piece_table.add[self.offset..self.offset+self.length].into_iter().collect::<String>()
+        }else{
+            piece_table.read[self.offset..self.offset+self.length].into_iter().collect::<String>()
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -63,7 +73,7 @@ impl PieceTable{
     pub fn insert(&mut self, idx: usize, text: String){
         assert!(self.length >= idx);
 
-        let piece_and_offset: Vec<usize> = self.get_piece_by_index(idx).expect("I hape it won't happen");
+        let piece_and_offset: Vec<usize> = self.get_piece_by_index(idx).expect("I hope it won't happen");
         let cur_piece = &mut self.pieces[piece_and_offset[0]];
         self.length += text.chars().count();
         self.num_lines += text.split("\n").count();
@@ -104,12 +114,12 @@ impl PieceTable{
         self.pieces = pieces;
     }
 
-    pub fn remove(&mut self, idx: usize, length: usize){
+    pub fn remove(&mut self, idx: usize, length: usize) -> Option<String>{
         if length <= 0{
-            panic!();
+            return None
         };
         if self.length == 0{
-            return
+            return None
         }
 
         let start_piece_and_offset: Vec<usize> = self.get_piece_by_index(idx).unwrap();
@@ -121,12 +131,14 @@ impl PieceTable{
 
         if start_piece_and_offset[0] == stop_piece_and_offset[0]{
             if start_piece_and_offset[1] == 0{
+                let text:String = self.pieces[start_piece_and_offset[0]].get_string(self);
                 self.pieces[start_piece_and_offset[0]].offset += length;
                 self.pieces[start_piece_and_offset[0]].length -= length;
-                return
+                return Some(text.chars().into_iter().collect::<Vec<char>>()[..length].into_iter().collect::<String>());
             }else if stop_piece_and_offset[1] == self.pieces[start_piece_and_offset[0]].length{
+                let text:String = self.pieces[start_piece_and_offset[0]].get_string(self);
                 self.pieces[start_piece_and_offset[0]].length -= length;
-                return
+                return Some(text.chars().into_iter().collect::<Vec<char>>()[self.pieces[start_piece_and_offset[0]].length..].into_iter().collect::<String>());
             } 
         }
 
@@ -148,10 +160,31 @@ impl PieceTable{
 
         let delete_cnt = stop_piece_and_offset[0] - start_piece_and_offset[0];
 
+        let mut deleted_str:String = String::new();
+        for piece in self.pieces[start_piece_and_offset[0]..(start_piece_and_offset[0]+delete_cnt+1)].to_vec(){
+            let piece_str: String;
+            if piece == self.pieces[stop_piece_and_offset[0]]{
+                piece_str = piece.get_string(self).chars().into_iter().collect::<Vec<char>>()[..stop_piece_and_offset[1]].into_iter().collect::<String>();
+            }
+            else if piece == self.pieces[start_piece_and_offset[0]]{
+                piece_str = piece.get_string(self).chars().into_iter().collect::<Vec<char>>()[start_piece_and_offset[1]..].into_iter().collect::<String>();
+            }
+            else{
+                piece_str = piece.get_string(self);
+            }
+            deleted_str += &piece_str;
+            if deleted_str.chars().count() >= length{
+                if deleted_str.chars().count() > length{
+                    deleted_str = deleted_str.chars().into_iter().collect::<Vec<char>>()[..length].into_iter().collect::<String>();
+                }
+                break
+            }
+        }
         let mut pieces: Vec<Piece> = self.pieces[..start_piece_and_offset[0]].to_vec();
         pieces.extend(delete_pieces.iter());
         pieces.extend(self.pieces[(start_piece_and_offset[0]+delete_cnt+1)..].iter());
         self.pieces = pieces;
+        Some(deleted_str)
     }
 
     pub fn push(&mut self, text: String){

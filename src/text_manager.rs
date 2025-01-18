@@ -13,7 +13,9 @@ use termion::raw::IntoRawMode;
 
 use crate::piece_table::PieceTable;
 use crate::lines_handler::LinesHandler;
-use crate::undo_redo::UndoRedo;
+use crate::undo_redo::reversable_function::ReversableFunction;
+use crate::undo_redo::undo_redo::UndoRedo2;
+use crate::undo_redo::reversable_function::Funcs;
 
 struct CursorPos{
     x: usize,
@@ -24,7 +26,7 @@ pub struct TextManager{
     document: PieceTable,
     cursor_pos: CursorPos,
     lines_handler: LinesHandler,
-    undo_redo: UndoRedo,
+    undo_redo: UndoRedo2,
 }
 
 
@@ -41,7 +43,7 @@ impl TextManager{
                 y: 1
             },
             lines_handler: lines_handler,
-            undo_redo: UndoRedo::new(),
+            undo_redo: UndoRedo2::new(),
         })
     }
 
@@ -58,23 +60,43 @@ impl TextManager{
         for c in stdin.keys() {
             match c.unwrap() {
                 Key::Ctrl('q') => {
+                    fs::write("input_text", self.document.get_text()).expect("Unable to write file");
+                    break;
+                }
+                Key::Ctrl('c') => {
                     break;
                 }
                 Key::Ctrl('z') => {
-                    let new_document = self.undo_redo.undo();
-                    if !new_document.is_none(){
-                        self.document = new_document.unwrap();
-                        self.update_lines_lenghts();
-                        self.reload();
+                    let function = self.undo_redo.undo();
+                    if !function.is_none(){
+                        let reversable_function = function.unwrap();
+                        if reversable_function.func == Funcs::Insert{
+                            self.document.remove(reversable_function.index, reversable_function.string.chars().count());
+                        }else{
+                            self.document.insert({ 
+                                if reversable_function.index <= reversable_function.string.chars().count(){
+                                    reversable_function.index
+                                }else{
+                                    reversable_function.index - reversable_function.string.chars().count()
+                                }
+                            }, reversable_function.string.clone());
+                        }
                     }
+                    self.update_lines_lenghts();
+                    self.reload();
                 }
                 Key::Ctrl('y') => {
-                    let new_document = self.undo_redo.redo();
-                    if !new_document.is_none(){
-                        self.document = new_document.unwrap();
-                        self.update_lines_lenghts();
-                        self.reload();
+                    let function = self.undo_redo.redo();
+                    if !function.is_none(){
+                        let reversable_function = function.unwrap();
+                        if reversable_function.func == Funcs::Insert{
+                            self.document.insert(reversable_function.index, reversable_function.string.clone());
+                        }else{
+                            self.document.remove(reversable_function.index, reversable_function.string.chars().count());
+                        }
                     }
+                    self.update_lines_lenghts();
+                    self.reload();
                 }
                 Key::Left => {
                     self.dec_x();
@@ -96,27 +118,25 @@ impl TextManager{
                 }
                 Key::Backspace => {
                     let idx = self.get_document_index(&self.cursor_pos);
-                    if self.cursor_pos.x == 0{
+                    if self.cursor_pos.x == 1 && self.cursor_pos.y == 1{
                         continue;
                     }
                     self.dec_x();
-                    self.undo_redo.push(self.document.clone());
                     if self.cursor_pos.x == 1 {
-                        self.document.remove(self.get_document_index(&self.cursor_pos), 1);
+                        self.undo_redo.push(ReversableFunction::new(Funcs::Remove, idx, self.document.remove(self.get_document_index(&self.cursor_pos), 1).unwrap()));
                     }
                     else{
-                        self.document.remove(self.get_document_index(&self.cursor_pos), 1);
+                        self.undo_redo.push(ReversableFunction::new(Funcs::Remove, idx, self.document.remove(self.get_document_index(&self.cursor_pos), 1).unwrap()));
                     }
                     self.update_lines_lenghts();
                     self.reload();
                 }
                 Key::Delete => {
                     let idx = self.get_document_index(&self.cursor_pos);
-                    if idx > self.document.get_length(){
+                    if idx >= self.document.get_length(){
                         continue;
                     }
-                    self.undo_redo.push(self.document.clone());
-                    self.document.remove(idx, 1);
+                    self.undo_redo.push(ReversableFunction::new(Funcs::Remove, self.get_document_index(&self.cursor_pos), self.document.remove(idx, 1).unwrap()));
                     self.update_lines_lenghts();
                     self.reload();
                 }
@@ -124,7 +144,7 @@ impl TextManager{
                     let idx = self.get_document_index(&self.cursor_pos);
                     if idx > self.document.get_length(){}
                     else{
-                        self.undo_redo.push(self.document.clone());
+                        self.undo_redo.push(ReversableFunction::new(Funcs::Insert, self.get_document_index(&self.cursor_pos), ch.to_string()));
                         self.document.insert(self.get_document_index(&self.cursor_pos), ch.to_string());
                         if ch == '\n'{
                             self.update_lines_lenghts();
@@ -135,6 +155,7 @@ impl TextManager{
                             self.increment_lenght(self.cursor_pos.y - 1);
                             self.inc_x();
                         }
+                        
                     }
                     self.reload();
                 }
@@ -142,7 +163,6 @@ impl TextManager{
             }
             stdout.flush().unwrap();
         }
-        fs::write("input_text", self.document.get_text()).expect("Unable to write file");
     }
 
     fn get_document_index(&self, cursor: &CursorPos) -> usize{

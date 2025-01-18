@@ -18,7 +18,7 @@ fn main() -> Result<(), String>{
         if error.kind() == NotFound{
             Err("File not found".to_string())?
         }else{
-            Err("Unhandled errro".to_string())?
+            Err("Unhandled errror".to_string())?
         }
 
     };
