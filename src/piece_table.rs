@@ -221,3 +221,77 @@ impl PieceTable{
         self.length
     }
 }
+
+#[cfg(test)]
+mod piece_table_tests{
+    use crate::piece_table;
+
+    use super::*;
+    use assert_str::assert_str_eq;
+
+    fn piece_table_init() -> PieceTable{
+        let mut piece_table = PieceTable::new();
+        piece_table.assign_buffer("Hello World".to_string());
+        piece_table
+    }
+
+    #[test]
+    fn test_delete_from_back_one(){
+        let mut piece_table = piece_table_init();
+
+        assert_str_eq!(piece_table.remove(10, 1).unwrap(), "d".to_string())
+    }
+
+    #[test]
+    fn test_delete_from_back_chunk(){
+        let mut piece_table = piece_table_init();
+
+        assert_str_eq!(piece_table.remove(8, 3).unwrap(), "rld".to_string())
+    }
+
+    #[test]
+    fn test_delete_from_front_one(){
+        let mut piece_table = piece_table_init();
+
+        assert_str_eq!(piece_table.remove(0, 1).unwrap(), "H".to_string())
+    }
+
+    #[test]
+    fn test_delete_from_front_chunk(){
+        let mut piece_table = piece_table_init();
+
+        assert_str_eq!(piece_table.remove(0, 4).unwrap(), "Hell".to_string())
+    }
+
+    #[test]
+    fn test_delete_from_middle_one_singular(){
+        let mut piece_table = piece_table_init();
+
+        assert_str_eq!(piece_table.remove(1, 1).unwrap(), "W".to_string())
+    }
+
+    #[test]
+    fn test_delete_from_middle_one_multiple(){
+        let mut piece_table = piece_table_init();
+
+        assert_str_eq!(piece_table.remove(1, 1).unwrap(), "e".to_string());
+        assert_str_eq!(piece_table.remove(1, 1).unwrap(), "l".to_string());
+        assert_str_eq!(piece_table.remove(1, 1).unwrap(), "l".to_string())
+    }
+
+    #[test]
+    fn test_delete_from_middle_chunk_singular(){
+        let mut piece_table = piece_table_init();
+
+        assert_str_eq!(piece_table.remove(3, 4).unwrap(), "lo W".to_string())
+    }
+
+    #[test]
+    fn test_delete_from_middle_chunk_multiple(){
+        let mut piece_table = piece_table_init();
+
+        assert_str_eq!(piece_table.remove(1, 4).unwrap(), "ello".to_string());
+        assert_str_eq!(piece_table.remove(1, 4).unwrap(), " Wor".to_string());
+    }
+
+}
