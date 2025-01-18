@@ -1,6 +1,7 @@
 mod piece_table;
 mod text_manager;
 mod lines_handler;
+mod undo_redo;
 use crate::text_manager::TextManager;
 use std::env::args;
 use std::io::ErrorKind::NotFound;

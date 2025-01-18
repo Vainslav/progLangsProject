@@ -13,6 +13,7 @@ use termion::raw::IntoRawMode;
 
 use crate::piece_table::PieceTable;
 use crate::lines_handler::LinesHandler;
+use crate::undo_redo::UndoRedo;
 
 struct CursorPos{
     x: usize,
@@ -23,7 +24,7 @@ pub struct TextManager{
     document: PieceTable,
     cursor_pos: CursorPos,
     lines_handler: LinesHandler,
-    undo_redo: VecDeque<PieceTable>,
+    undo_redo: UndoRedo,
 }
 
 
@@ -40,7 +41,7 @@ impl TextManager{
                 y: 1
             },
             lines_handler: lines_handler,
-            undo_redo: VecDeque::new(),
+            undo_redo: UndoRedo::new(),
         })
     }
 
@@ -51,7 +52,7 @@ impl TextManager{
     }
 
     pub fn run(&mut self){
-        let mut stdout = stdout().into_raw_mode().unwrap().into_alternate_screen().unwrap();
+        let mut stdout = stdout().into_raw_mode().unwrap();
         self.reload();
         let stdin = stdin();
         for c in stdin.keys() {
@@ -60,7 +61,15 @@ impl TextManager{
                     break;
                 }
                 Key::Ctrl('z') => {
-                    let new_document = self.undo_redo_pop();
+                    let new_document = self.undo_redo.undo();
+                    if !new_document.is_none(){
+                        self.document = new_document.unwrap();
+                        self.update_lines_lenghts();
+                        self.reload();
+                    }
+                }
+                Key::Ctrl('y') => {
+                    let new_document = self.undo_redo.redo();
                     if !new_document.is_none(){
                         self.document = new_document.unwrap();
                         self.update_lines_lenghts();
@@ -91,9 +100,9 @@ impl TextManager{
                         continue;
                     }
                     self.dec_x();
-                    self.undo_redo_push(self.document.clone());
+                    self.undo_redo.push(self.document.clone());
                     if self.cursor_pos.x == 1 {
-                        self.document.remove(self.get_document_index(&self.cursor_pos) - 1, 1);
+                        self.document.remove(self.get_document_index(&self.cursor_pos), 1);
                     }
                     else{
                         self.document.remove(self.get_document_index(&self.cursor_pos), 1);
@@ -106,7 +115,7 @@ impl TextManager{
                     if idx > self.document.get_length(){
                         continue;
                     }
-                    self.undo_redo_push(self.document.clone());
+                    self.undo_redo.push(self.document.clone());
                     self.document.remove(idx, 1);
                     self.update_lines_lenghts();
                     self.reload();
@@ -115,7 +124,7 @@ impl TextManager{
                     let idx = self.get_document_index(&self.cursor_pos);
                     if idx > self.document.get_length(){}
                     else{
-                        self.undo_redo_push(self.document.clone());
+                        self.undo_redo.push(self.document.clone());
                         self.document.insert(self.get_document_index(&self.cursor_pos), ch.to_string());
                         if ch == '\n'{
                             self.update_lines_lenghts();
@@ -193,16 +202,5 @@ impl TextManager{
 
     fn get_num_lines(&self) -> usize{
         self.lines_handler.get_num_lines()
-    }
-
-    fn undo_redo_push(&mut self, document: PieceTable){
-        if self.undo_redo.len() == 10{
-            self.undo_redo.pop_back();
-        }
-        self.undo_redo.push_front(document);
-    } 
-
-    fn undo_redo_pop(&mut self) -> Option<PieceTable>{
-        self.undo_redo.pop_front()
     }
 }

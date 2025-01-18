@@ -108,6 +108,9 @@ impl PieceTable{
         if length <= 0{
             panic!();
         };
+        if self.length == 0{
+            return
+        }
 
         let start_piece_and_offset: Vec<usize> = self.get_piece_by_index(idx).unwrap();
         let stop_piece_and_offset: Vec<usize> = match self.get_piece_by_index(idx + length) {
