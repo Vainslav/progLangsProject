@@ -14,32 +14,38 @@ impl UndoRedo{
     }
 
     pub fn push(&mut self, func: ReversableFunction){
-        if self.pointer > 0{
+        if self.stack.len() != 0 && self.pointer != (self.stack.len() - 1) as i64{
             while self.pointer + 1 < self.stack.len() as i64{
-                self.stack.pop();
+                if self.stack.pop().is_none(){
+                    break;
+                }
             }
         }
         self.stack.push(func);
         self.pointer = (self.stack.len() - 1) as i64;
     }
 
-    pub fn undo(&mut self) -> Option<ReversableFunction>{
-        // if self.stack.len() != 0 && self.pointer >= 0{
-        //     self.pointer = self.pointer - 1;
-        //     self.stack.get((self.pointer + 1) as usize)
-        // }else{
-        //     None
-        // }
-        self.stack.pop()
+    pub fn undo(&mut self) -> Option<&ReversableFunction>{
+        if self.pointer == (self.stack.len() - 1) as i64{
+            self.pointer -= 1;
+            return self.stack.last()
+        }
+        else if self.pointer >= 0 || self.stack.len() != 0{
+            self.pointer -= 1;
+            return self.stack.get((self.pointer + 1) as usize);
+        }else{
+            None
+        }
     }
 
     pub fn redo(&mut self) -> Option<&ReversableFunction>{
-        if self.stack.len() != 0{
-            let func = self.stack.get(self.pointer as usize);
-            self.pointer = std::cmp::min((self.stack.len() - 1) as i64, self.pointer + 1);
-            func
+        if self.pointer == (self.stack.len() - 1) as i64{
+            return None
+        }else if self.stack.len() != 0 && self.pointer < (self.stack.len() - 1) as i64{
+            self.pointer += 1;
+            self.stack.get(self.pointer as usize)
         }else{
-            None
+            return None
         }
     }
 }

@@ -85,19 +85,25 @@ impl TextManager{
                     self.update_lines_lenghts();
                     self.reload();
                 }
-                // Key::Ctrl('y') => {
-                //     let function = self.undo_redo.redo();
-                //     if !function.is_none(){
-                //         let reversable_function = function.unwrap();
-                //         if reversable_function.func == Funcs::Insert{
-                //             self.document.insert(reversable_function.index, reversable_function.string.clone());
-                //         }else{
-                //             self.document.remove(reversable_function.index, reversable_function.string.chars().count());
-                //         }
-                //     }
-                //     self.update_lines_lenghts();
-                //     self.reload();
-                // }
+                Key::Ctrl('y') => {
+                    let function = self.undo_redo.redo();
+                    if !function.is_none(){
+                        let reversable_function = function.unwrap();
+                        if reversable_function.func == Funcs::Insert{
+                            self.document.insert(reversable_function.index, reversable_function.string.clone());
+                        }else{
+                            self.document.remove({ 
+                                if reversable_function.index <= reversable_function.string.chars().count(){
+                                    0
+                                }else{
+                                    reversable_function.index - reversable_function.string.chars().count()
+                                }
+                            }, reversable_function.string.chars().count());
+                        }
+                    }
+                    self.update_lines_lenghts();
+                    self.reload();
+                }
                 Key::Left => {
                     self.dec_x();
                     self.reload();
