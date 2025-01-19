@@ -59,6 +59,10 @@ impl TextManager{
         let stdin = stdin();
         for c in stdin.keys() {
             match c.unwrap() {
+                Key::Ctrl('d') => {
+                    self.cursor_pos.x = 7;
+                    self.reload();
+                }
                 Key::Ctrl('q') => {
                     fs::write("input_text", self.document.get_text()).expect("Unable to write file");
                     break;
@@ -70,16 +74,26 @@ impl TextManager{
                     let function = self.undo_redo.undo();
                     if !function.is_none(){
                         let reversable_function = function.unwrap();
-                        if reversable_function.func == Funcs::Insert{
-                            self.document.remove(reversable_function.index, reversable_function.string.chars().count());
-                        }else{
-                            self.document.insert({ 
-                                if reversable_function.index <= reversable_function.string.chars().count(){
-                                    0
-                                }else{
-                                    reversable_function.index - reversable_function.string.chars().count()
-                                }
-                            }, reversable_function.string.clone());
+                        match reversable_function.func{
+                            Funcs::Insert => {
+                                self.document.remove(reversable_function.index, reversable_function.string.chars().count());
+                                self.cursor_pos = Self::get_cursor_from_index(reversable_function.index, self.get_line_lenght_vec())
+                            }
+                            Funcs::Remove => {
+                                self.document.insert({ 
+                                    if reversable_function.index <= reversable_function.string.chars().count(){
+                                        0
+                                    }else{
+                                        reversable_function.index - reversable_function.string.chars().count()
+                                    }
+                                }, reversable_function.string.clone());
+                                self.cursor_pos = Self::get_cursor_from_index(reversable_function.index + reversable_function.string.chars().count(), self.get_line_lenght_vec())
+                            }
+                            Funcs::Delete => {
+                                self.document.insert(reversable_function.index, reversable_function.string.clone());
+                                self.cursor_pos = Self::get_cursor_from_index(reversable_function.index + reversable_function.string.chars().count(), self.get_line_lenght_vec())
+                            }
+                            _ => print!("Anlaki")
                         }
                     }
                     self.update_lines_lenghts();
@@ -89,16 +103,26 @@ impl TextManager{
                     let function = self.undo_redo.redo();
                     if !function.is_none(){
                         let reversable_function = function.unwrap();
-                        if reversable_function.func == Funcs::Insert{
-                            self.document.insert(reversable_function.index, reversable_function.string.clone());
-                        }else{
-                            self.document.remove({ 
-                                if reversable_function.index <= reversable_function.string.chars().count(){
-                                    0
-                                }else{
-                                    reversable_function.index - reversable_function.string.chars().count()
-                                }
-                            }, reversable_function.string.chars().count());
+                        match reversable_function.func{
+                            Funcs::Insert => {
+                                self.document.insert(reversable_function.index, reversable_function.string.clone());
+                                self.cursor_pos = Self::get_cursor_from_index(reversable_function.index, self.get_line_lenght_vec())
+                            }
+                            Funcs::Remove => {
+                                self.document.remove({ 
+                                    if reversable_function.index <= reversable_function.string.chars().count(){
+                                        0
+                                    }else{
+                                        reversable_function.index - reversable_function.string.chars().count()
+                                    }
+                                }, reversable_function.string.chars().count());
+                                self.cursor_pos = Self::get_cursor_from_index(reversable_function.index, self.get_line_lenght_vec());
+                            }
+                            Funcs::Delete => {
+                                self.document.remove(reversable_function.index, reversable_function.string.chars().count());
+                                self.cursor_pos = Self::get_cursor_from_index(reversable_function.index + reversable_function.string.chars().count(), self.get_line_lenght_vec())
+                            }
+                            _ => print!("Anlaki")
                         }
                     }
                     self.update_lines_lenghts();
@@ -142,7 +166,7 @@ impl TextManager{
                     if idx >= self.document.get_length(){
                         continue;
                     }
-                    self.undo_redo.push(ReversableFunction::new(Funcs::Remove, self.get_document_index(&self.cursor_pos), self.document.remove(idx, 1).unwrap()));
+                    self.undo_redo.push(ReversableFunction::new(Funcs::Delete, self.get_document_index(&self.cursor_pos), self.document.remove(idx, 1).unwrap()));
                     self.update_lines_lenghts();
                     self.reload();
                 }
@@ -180,6 +204,22 @@ impl TextManager{
             idx += line.chars().count() + 1;
         }
         idx + cursor.x - 1
+    }
+
+    fn get_cursor_from_index(index: usize, line_lengths: Vec<usize>) -> CursorPos{
+        let mut index = index;
+        let mut x = 1;
+        let mut y = 1;
+        for i in line_lengths.iter(){
+            if index > *i{
+                index -= i + 1;
+                y += 1;
+            }else{
+                x = std::cmp::max(index, 1);
+                break
+            }
+        }
+        CursorPos{x,y}
     }
 
     fn dec_x(&mut self){
@@ -228,5 +268,9 @@ impl TextManager{
 
     fn get_num_lines(&self) -> usize{
         self.lines_handler.get_num_lines()
+    }
+
+    fn get_line_lenght_vec(&self) -> Vec<usize>{
+        self.lines_handler.get_line_lenght_vec()
     }
 }

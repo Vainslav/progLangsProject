@@ -34,6 +34,14 @@ impl LinesHandler{
         self.lines_lenght.len()
     }
 
+    pub fn get_line_lenght_vec(&self) -> Vec<usize>{
+        let mut vec:Vec<usize> = Vec::new();
+        for i in 0..self.get_num_lines(){
+            vec.push(self.get_line_lenght(i))
+        }
+        vec
+    }
+
     // Trying to improve algorithm
     // pub fn add_to_line(&mut self, text: String, line: usize){
     //     let indecies = text.chars()

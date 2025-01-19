@@ -4,6 +4,7 @@ use crate::piece_table::PieceTable;
 pub enum Funcs{
     Insert,
     Remove,
+    Delete,
 }
 
 pub struct ReversableFunction{
