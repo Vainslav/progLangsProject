@@ -14,7 +14,7 @@ use termion::raw::IntoRawMode;
 use crate::piece_table::PieceTable;
 use crate::lines_handler::LinesHandler;
 use crate::undo_redo::reversable_function::ReversableFunction;
-use crate::undo_redo::undo_redo::UndoRedo2;
+use crate::undo_redo::undo_redo::UndoRedo;
 use crate::undo_redo::reversable_function::Funcs;
 
 struct CursorPos{
@@ -26,7 +26,7 @@ pub struct TextManager{
     document: PieceTable,
     cursor_pos: CursorPos,
     lines_handler: LinesHandler,
-    undo_redo: UndoRedo2,
+    undo_redo: UndoRedo,
 }
 
 
@@ -43,7 +43,7 @@ impl TextManager{
                 y: 1
             },
             lines_handler: lines_handler,
-            undo_redo: UndoRedo2::new(),
+            undo_redo: UndoRedo::new(),
         })
     }
 
