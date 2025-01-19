@@ -13,7 +13,8 @@ impl LinesHandler{
         }
     } 
 
-    pub fn recalculate_lenghts(&mut self, string: String){
+    //too slow
+    pub fn recalculate_line_lenghts(&mut self, string: String){
         let mut vec: Vec<usize> = Vec::new();
         for line in string.split('\n'){
             vec.push(line.chars().count());

@@ -115,7 +115,7 @@ impl PieceTable{
     }
 
     pub fn remove(&mut self, idx: usize, length: usize) -> Option<String>{
-        if length <= 0{
+        if length == 0{
             return None
         };
         if self.length == 0{
@@ -163,11 +163,11 @@ impl PieceTable{
         let mut deleted_str:String = String::new();
         for piece in self.pieces[start_piece_and_offset[0]..(start_piece_and_offset[0]+delete_cnt+1)].to_vec(){
             let piece_str: String;
-            if piece == self.pieces[stop_piece_and_offset[0]]{
-                piece_str = piece.get_string(self).chars().into_iter().collect::<Vec<char>>()[..stop_piece_and_offset[1]].into_iter().collect::<String>();
-            }
-            else if piece == self.pieces[start_piece_and_offset[0]]{
+            if piece == self.pieces[start_piece_and_offset[0]]{
                 piece_str = piece.get_string(self).chars().into_iter().collect::<Vec<char>>()[start_piece_and_offset[1]..].into_iter().collect::<String>();
+            }
+            else if piece == self.pieces[stop_piece_and_offset[0]]{
+                piece_str = piece.get_string(self).chars().into_iter().collect::<Vec<char>>()[..stop_piece_and_offset[1]].into_iter().collect::<String>();
             }
             else{
                 piece_str = piece.get_string(self);
@@ -222,10 +222,10 @@ impl PieceTable{
     }
 }
 
+
+
 #[cfg(test)]
 mod piece_table_tests{
-    use crate::piece_table;
-
     use super::*;
     use assert_str::assert_str_eq;
 
@@ -267,7 +267,7 @@ mod piece_table_tests{
     fn test_delete_from_middle_one_singular(){
         let mut piece_table = piece_table_init();
 
-        assert_str_eq!(piece_table.remove(1, 1).unwrap(), "W".to_string())
+        assert_str_eq!(piece_table.remove(1, 1).unwrap(), "e".to_string())
     }
 
     #[test]
@@ -293,5 +293,4 @@ mod piece_table_tests{
         assert_str_eq!(piece_table.remove(1, 4).unwrap(), "ello".to_string());
         assert_str_eq!(piece_table.remove(1, 4).unwrap(), " Wor".to_string());
     }
-
 }
