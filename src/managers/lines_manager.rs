@@ -1,14 +1,14 @@
-pub struct LinesHandler{
+pub struct LinesManager{
     lines_lenght: Vec<usize>
 }
 
-impl LinesHandler{
-    pub fn init(string: &String) -> LinesHandler{
+impl LinesManager{
+    pub fn init(string: &String) -> LinesManager{
         let mut vec: Vec<usize> = Vec::new();
         for line in string.split('\n'){
             vec.push(line.chars().count());
         }
-        LinesHandler{
+        LinesManager{
             lines_lenght: vec,
         }
     } 

@@ -1,10 +1,11 @@
-mod piece_table;
-mod text_manager;
-mod lines_handler;
-mod undo_redo;
-use crate::text_manager::TextManager;
+mod modes;
+mod util;
+mod managers;
+mod terminal_state;
+
+use managers::lines_manager::LinesManager;
+
 use std::env::args;
-use std::io::ErrorKind::NotFound;
 
 
 fn main() -> Result<(), String>{
@@ -12,16 +13,10 @@ fn main() -> Result<(), String>{
     if args.len() != 2{
         Err("File not specified".to_string())?;
     }
-    let mut text_manager = match TextManager::init(&args[1]){
-        Ok(text_manager) => text_manager,
-        Err(error) => 
-        if error.kind() == NotFound{
-            Err("File not found".to_string())?
-        }else{
-            Err("Unhandled errror".to_string())?
-        }
 
-    };
+    let mut lines_manager = LinesManager::init(&"".to_string());
+
+    let mut text_manager = match InsertMode::init(&args[1]);
     text_manager.run();
     Ok(())
 }

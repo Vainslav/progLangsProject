@@ -1,5 +1,3 @@
-use crate::piece_table::PieceTable;
-
 #[derive(PartialEq)]
 pub enum Funcs{
     Insert,

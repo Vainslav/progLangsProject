@@ -1,13 +1,13 @@
-use super::reversable_function::ReversableFunction;
+use crate::util::reversable_function::ReversableFunction;
 
-pub struct UndoRedo{
+pub struct UndoRedoManager{
     stack: Vec<ReversableFunction>,
     pointer: i64
 }
 
-impl UndoRedo{
-    pub fn new() -> UndoRedo{
-        UndoRedo{
+impl UndoRedoManager{
+    pub fn new() -> UndoRedoManager{
+        UndoRedoManager{
             stack: Vec::new(),
             pointer: -1,
         }

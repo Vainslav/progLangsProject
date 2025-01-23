@@ -1,7 +1,6 @@
-use std::collections::VecDeque;
 use std::fs::read_to_string;
 use std::io::stdin;
-use std::io::{Write, stdout, Error};
+use std::io::{Write, stdout};
 use std::cmp::{min, max};
 
 
@@ -11,58 +10,38 @@ use termion::screen::IntoAlternateScreen;
 use std::fs;
 use termion::raw::IntoRawMode;
 
-use crate::piece_table::PieceTable;
-use crate::lines_handler::LinesHandler;
-use crate::undo_redo::reversable_function::ReversableFunction;
-use crate::undo_redo::undo_redo::UndoRedo;
-use crate::undo_redo::reversable_function::Funcs;
+use crate::util::piece_table::PieceTable;
+use crate::managers::lines_manager::LinesManager;
+use crate::managers::undo_redo_manager::UndoRedoManager;
+use crate::util::reversable_function::ReversableFunction;
+use crate::util::reversable_function::Funcs;
+use crate::modes::mode_trait::Mode;
 
 struct CursorPos{
     x: usize,
     y: usize
 }
 
-pub struct TextManager{
+pub struct InsertMode{
     document: PieceTable,
     cursor_pos: CursorPos,
-    lines_handler: LinesHandler,
-    undo_redo: UndoRedo,
+    lines_manager: LinesManager,
+    undo_redo: UndoRedoManager,
 }
 
-
-impl TextManager{
-    pub fn init(file: &str) -> Result<TextManager, Error>{
-        let mut piece_table = PieceTable::new();
-        let text_from_file = read_to_string(file)?;
-        let lines_handler = LinesHandler::init(&text_from_file);
-        piece_table.assign_buffer(text_from_file);
-        Ok(TextManager{
-            document: piece_table,
-            cursor_pos: CursorPos{
-                x: 1,
-                y: 1
-            },
-            lines_handler: lines_handler,
-            undo_redo: UndoRedo::new(),
-        })
-    }
-
-    pub fn reload(&self){
+impl Mode for InsertMode{
+    fn update(&self){
         print!("{}{}", termion::clear::All, termion::cursor::Goto(1,1));
         print!("{}", self.document.get_text().replace("\n", "\n\r"));
         print!("{}", termion::cursor::Goto(self.cursor_pos.x as u16, self.cursor_pos.y as u16))
     }
 
-    pub fn run(&mut self){
-        let mut stdout = stdout().into_raw_mode().unwrap();
-        self.reload();
+    fn run(&mut self){
+        let mut stdout = stdout().into_raw_mode().unwrap().into_alternate_screen().unwrap();
+        self.update();
         let stdin = stdin();
         for c in stdin.keys() {
             match c.unwrap() {
-                Key::Ctrl('d') => {
-                    self.cursor_pos.x = 7;
-                    self.reload();
-                }
                 Key::Ctrl('q') => {
                     fs::write("input_text", self.document.get_text()).expect("Unable to write file");
                     break;
@@ -97,7 +76,7 @@ impl TextManager{
                         }
                     }
                     self.update_lines_lenghts();
-                    self.reload();
+                    self.update();
                 }
                 Key::Ctrl('y') => {
                     let function = self.undo_redo.redo();
@@ -126,25 +105,25 @@ impl TextManager{
                         }
                     }
                     self.update_lines_lenghts();
-                    self.reload();
+                    self.update();
                 }
                 Key::Left => {
                     self.dec_x();
-                    self.reload();
+                    self.update();
                 }
                 Key::Right => {
                     self.inc_x();
-                    self.reload();
+                    self.update();
                 }
                 Key::Up => {
                     self.dec_y();
                     self.cursor_pos.x = min(self.cursor_pos.x, self.get_line_length(self.cursor_pos.y - 1) + 1);
-                    self.reload();
+                    self.update();
                 }
                 Key::Down => {
                     self.inc_y();
                     self.cursor_pos.x = min(self.cursor_pos.x, self.get_line_length(self.cursor_pos.y - 1) + 1);
-                    self.reload();
+                    self.update();
                 }
                 Key::Backspace => {
                     let idx = self.get_document_index(&self.cursor_pos);
@@ -159,7 +138,7 @@ impl TextManager{
                         self.undo_redo.push(ReversableFunction::new(Funcs::Remove, idx, self.document.remove(self.get_document_index(&self.cursor_pos), 1).unwrap()));
                     }
                     self.update_lines_lenghts();
-                    self.reload();
+                    self.update();
                 }
                 Key::Delete => {
                     let idx = self.get_document_index(&self.cursor_pos);
@@ -168,7 +147,7 @@ impl TextManager{
                     }
                     self.undo_redo.push(ReversableFunction::new(Funcs::Delete, self.get_document_index(&self.cursor_pos), self.document.remove(idx, 1).unwrap()));
                     self.update_lines_lenghts();
-                    self.reload();
+                    self.update();
                 }
                 Key::Char(ch)=> {
                     let idx = self.get_document_index(&self.cursor_pos);
@@ -187,11 +166,29 @@ impl TextManager{
                         }
                         
                     }
-                    self.reload();
+                    self.update();
                 }
                 _ => {}
             }
             stdout.flush().unwrap();
+        }
+    }
+}
+
+impl InsertMode{
+    pub fn init(file: &str) -> InsertMode{
+        let mut piece_table = PieceTable::new();
+        let text_from_file = read_to_string(file).unwrap();
+        let lines_manager = LinesManager::init(&text_from_file);
+        piece_table.assign_buffer(text_from_file);
+        InsertMode{
+            document: piece_table,
+            cursor_pos: CursorPos{
+                x: 1,
+                y: 1
+            },
+            lines_manager: lines_manager,
+            undo_redo: UndoRedoManager::new(),
         }
     }
 
@@ -255,22 +252,22 @@ impl TextManager{
     }
 
     fn update_lines_lenghts(&mut self){
-        self.lines_handler.recalculate_line_lenghts(self.document.get_text());
+        self.lines_manager.recalculate_line_lenghts(self.document.get_text());
     }
 
     fn increment_lenght(&mut self, line: usize){
-        self.lines_handler.increment_lenght(line);
+        self.lines_manager.increment_lenght(line);
     }
 
     fn get_line_length(&self, line: usize) -> usize{
-        self.lines_handler.get_line_lenght(line)
+        self.lines_manager.get_line_lenght(line)
     }
 
     fn get_num_lines(&self) -> usize{
-        self.lines_handler.get_num_lines()
+        self.lines_manager.get_num_lines()
     }
 
     fn get_line_lenght_vec(&self) -> Vec<usize>{
-        self.lines_handler.get_line_lenght_vec()
+        self.lines_manager.get_line_lenght_vec()
     }
 }

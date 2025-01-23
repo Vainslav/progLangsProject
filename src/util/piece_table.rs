@@ -43,6 +43,12 @@ impl PieceTable{
     }
 
     pub fn assign_buffer(&mut self, str: String){
+        self.length = 0;
+        self.length = 0;
+        self.read = vec![];
+        self.add = vec![];
+        self.pieces = vec![];
+
         if str.len() > 0{
             self.pieces.push(Piece{
                 buffer: Buffer::Read,
