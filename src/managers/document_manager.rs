@@ -1,6 +1,6 @@
-use std::fs::{read_to_string, File};
+use crate::util::reversable_function::ReversableFunction;
 
-use super::text_manager::{self, TextManager};
+use super::{cursor_manager::CursorPos, text_manager::TextManager};
 use std::process::exit;
 
 pub struct Document{
@@ -35,11 +35,47 @@ impl Document {
         self.text.insert(index, str);
     }
 
-    pub fn remove(&mut self, index: usize, length: usize){
-        self.text.remove(index, length);
+    pub fn remove(&mut self, index: usize, length: usize) -> String{
+        self.text.remove(index, length)
     }
 
     pub fn get_text(&self) -> String{
         self.text.get_text()
+    }
+
+    pub fn recalculate_line_lenghts(&mut self){
+        self.text.update_lines_lenghts();
+    }
+
+    pub fn get_length(&self) -> usize{
+        self.text.get_length()
+    }
+
+    pub fn get_line_length(&self, line: usize) -> usize{
+        self.text.get_line_length(line)
+    }
+
+    pub fn get_num_lines(&self) -> usize{
+        self.text.get_num_lines()
+    }
+
+    pub fn undo(&mut self){
+        self.text.undo();
+    }
+
+    pub fn redo(&mut self){
+        self.text.redo();
+    }
+
+    pub fn push_to_undo_redo(&mut self, func: ReversableFunction){
+        self.text.push_to_undo_redo(func);
+    }
+
+    pub fn get_cursor(&self) -> &CursorPos{
+        self.text.get_cursor()
+    }
+
+    pub fn get_cursor_mut(&mut self) -> &mut CursorPos{
+        self.text.get_cursor_mut()
     }
 }

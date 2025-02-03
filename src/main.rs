@@ -1,12 +1,11 @@
 mod modes;
 mod util;
 mod managers;
-mod terminal_state;
 
-use managers::lines_manager::LinesManager;
+use managers::document_manager::Document;
+use modes::mode_manager::ModeManager;
 
 use std::env::args;
-
 
 fn main() -> Result<(), String>{
     let args: Vec<String> = args().collect();
@@ -14,10 +13,10 @@ fn main() -> Result<(), String>{
         Err("File not specified".to_string())?;
     }
 
-    let mut lines_manager = LinesManager::init(&"".to_string());
+    let document_manager = Document::new(args[1].clone());
 
-    let mut text_manager = match InsertMode::init(&args[1]);
-    text_manager.run();
+    let mut modes = ModeManager::new(document_manager);
+    modes.run();
     Ok(())
 }
  

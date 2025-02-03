@@ -34,5 +34,13 @@ impl CursorPos{
     pub fn inc_y(&mut self){
         self.y += 1;
     }
+
+    pub fn dec_y(&mut self){
+        self.y -= 1;
+    }
+
+    pub fn dec_x(&mut self){
+        self.x -= 1;
+    }
 }
 
