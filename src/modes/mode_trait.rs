@@ -3,7 +3,7 @@ use termion::raw::RawTerminal;
 use std::io::Stdout;
 
 pub trait Mode{
-    fn run(&mut self, stdout: &AlternateScreen<RawTerminal<Stdout>>);
+    fn run(&mut self, stdout: &mut RawTerminal<Stdout>);
 
-    fn update(&self);
+    fn update(&self, stdout: &mut RawTerminal<Stdout>);
 }

@@ -19,7 +19,7 @@ static mut CURRENT_MODE: Modes = Modes::Insert;
 
 pub struct ModeManager{
     modes: HashMap<Modes, Box<dyn Mode>>,
-    screen: AlternateScreen<RawTerminal<Stdout>>,
+    screen: RawTerminal<Stdout>,
 }
 
 impl ModeManager{
@@ -28,18 +28,19 @@ impl ModeManager{
         hash_map.insert(Modes::Insert, Box::new(InsertMode::init(document)));
         ModeManager{
             modes: hash_map,
-            screen: stdout().into_raw_mode().unwrap().into_alternate_screen().unwrap()
+            screen: stdout().into_raw_mode().unwrap()
         }
     }
 
     pub fn run(&mut self){
-        while true{
+        loop {
             if unsafe{CURRENT_MODE == Modes::Normal}{
-                self.modes.get_mut(&Modes::Normal).unwrap().run(&self.screen);
+                self.modes.get_mut(&Modes::Normal).unwrap().run(&mut self.screen);
             }
             else if unsafe{CURRENT_MODE == Modes::Insert}{
-                self.modes.get_mut(&Modes::Insert).unwrap().run(&self.screen);
+                self.modes.get_mut(&Modes::Insert).unwrap().run(&mut self.screen);
             }
+            break
         }
     }
 }

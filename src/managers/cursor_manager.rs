@@ -1,13 +1,15 @@
 pub struct CursorPos{
     x: usize,
     y: usize,
+    max: usize,
 }
 
 impl CursorPos{
     pub fn new(x: usize, y:usize) -> CursorPos{
         CursorPos{
             x: x,
-            y: y
+            y: y,
+            max: x
         }
     }
 
@@ -41,6 +43,14 @@ impl CursorPos{
 
     pub fn dec_x(&mut self){
         self.x -= 1;
+    }
+
+    pub fn update_max(&mut self){
+        self.max = self.x;
+    }
+
+    pub fn get_max(&self) -> usize{
+        self.max
     }
 }
 

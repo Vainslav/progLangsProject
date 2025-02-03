@@ -120,7 +120,6 @@ impl TextManager{
                     self.text.remove(reversable_function.index, reversable_function.string.chars().count());
                     // self.cursor = Self::get_cursor_from_index(reversable_function.index + reversable_function.string.chars().count(), self.get_line_lenght_vec())
                 }
-                _ => print!("Anlaki")
             }
         }
         self.update_lines_lenghts();
@@ -130,11 +129,49 @@ impl TextManager{
         self.undo_redo.push(func);
     }
 
+
+
     pub fn get_cursor(&self) -> &CursorPos{
         &self.cursor
     }
 
     pub fn get_cursor_mut(&mut self) -> &mut CursorPos{
         &mut self.cursor
+    }
+
+    pub fn inc_x(&mut self){
+        if self.cursor.get_x() == self.get_line_length(self.cursor.get_y() - 1) + 1 && self.cursor.get_y() != self.get_num_lines(){
+            self.inc_y();
+            self.cursor.set_x(1);
+        }else{
+            self.cursor.set_x(min(self.cursor.get_x() + 1, self.get_line_length(self.cursor.get_y() - 1) + 1));
+        }
+        self.cursor.update_max();
+    }
+
+    pub fn inc_y(&mut self){
+        if self.cursor.get_y() == self.get_num_lines(){
+            return;
+        } 
+        self.cursor.inc_y();
+        self.cursor.set_x(min(self.cursor.get_max(), self.get_line_length(self.cursor.get_y() - 1) + 1));
+    }
+
+    pub fn dec_x(&mut self){
+        if self.cursor.get_x() == 1 && self.cursor.get_y() != 1{
+            self.dec_y();
+            self.cursor.set_x(self.get_line_length(self.cursor.get_y() - 1) + 1);
+            return
+        }
+        self.cursor.set_x(max(self.cursor.get_x() - 1, 1));
+        self.cursor.update_max();
+    }
+
+    pub fn dec_y(&mut self){
+        if self.cursor.get_y() == 1{
+            return
+        }
+        self.cursor.dec_y();
+        self.cursor.set_x(min(self.cursor.get_max(), self.get_line_length(self.cursor.get_y() - 1) + 1));
     }
 }

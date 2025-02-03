@@ -20,14 +20,15 @@ pub struct InsertMode{
 }
 
 impl Mode for InsertMode{
-    fn update(&self){
-        print!("{}{}", termion::clear::All, termion::cursor::Goto(1,1));
-        print!("{}", self.document.get_text().replace("\n", "\n\r"));
-        print!("{}", termion::cursor::Goto(self.document.get_cursor().get_x() as u16, self.document.get_cursor().get_y() as u16))
+    fn update(&self, stdout: &mut RawTerminal<Stdout>){
+        write!(stdout, "{}{}", termion::clear::All, termion::cursor::Goto(1,1)).unwrap();
+        write!(stdout, "{}", self.document.get_text().replace("\n", "\n\r")).unwrap();
+        write!(stdout, "{}", termion::cursor::Goto(self.document.get_cursor().get_x() as u16, self.document.get_cursor().get_y() as u16)).unwrap();
+        stdout.flush().unwrap();
     }
 
-    fn run(&mut self, stdout: &AlternateScreen<RawTerminal<Stdout>>){
-        self.update();
+    fn run(&mut self, stdout: &mut RawTerminal<Stdout>){
+        self.update(stdout);
         let stdin = stdin();
         for c in stdin.keys() {
             match c.unwrap() {
@@ -40,36 +41,36 @@ impl Mode for InsertMode{
                 }
                 Key::Ctrl('z') => {
                     self.document.undo();
-                    self.update();
+                    self.update(stdout);
                 }
                 Key::Ctrl('y') => {
                     self.document.redo();
-                    self.update();
+                    self.update(stdout);
                 }
                 Key::Left => {
-                    self.document.get_cursor_mut().dec_x();
-                    self.update();
+                    self.document.dec_x();
+                    self.update(stdout);
                 }
                 Key::Right => {
-                    self.document.get_cursor_mut().inc_x();
-                    self.update();
+                    self.document.inc_x();
+                    self.update(stdout);
                 }
                 Key::Up => {
-                    self.document.get_cursor_mut().dec_y();
+                    self.document.dec_y();
                     // self.cursor_pos.x = min(self.cursor_pos.x, self.get_line_length(self.cursor_pos.y - 1) + 1);
-                    self.update();
+                    self.update(stdout);
                 }
                 Key::Down => {
-                    self.document.get_cursor_mut().inc_y();
+                    self.document.inc_y();
                     // self.cursor_pos.x = min(self.cursor_pos.x, self.get_line_length(self.cursor_pos.y - 1) + 1);
-                    self.update();
+                    self.update(stdout);
                 }
                 Key::Backspace => {
                     let idx = self.get_document_index(self.document.get_cursor());
                     if self.document.get_cursor().get_x() == 1 && self.document.get_cursor().get_y() == 1{
                         continue;
                     }
-                    self.document.get_cursor_mut().dec_x();
+                    self.document.dec_x();
                     if self.document.get_cursor().get_x() == 1 {
                         let str = self.document.remove(self.get_document_index(self.document.get_cursor()), 1);
                         self.document.push_to_undo_redo(ReversableFunction::new(Funcs::Remove, idx, str));
@@ -79,7 +80,7 @@ impl Mode for InsertMode{
                         self.document.push_to_undo_redo(ReversableFunction::new(Funcs::Remove, idx, str));
                     }
                     self.update_lines_lenghts();
-                    self.update();
+                    self.update(stdout);
                 }
                 Key::Delete => {
                     let idx = self.get_document_index(self.document.get_cursor());
@@ -89,7 +90,7 @@ impl Mode for InsertMode{
                     let str = self.document.remove(idx, 1);
                     self.document.push_to_undo_redo(ReversableFunction::new(Funcs::Delete, self.get_document_index(self.document.get_cursor()), str));
                     self.update_lines_lenghts();
-                    self.update();
+                    self.update(stdout);
                 }
                 Key::Char(ch)=> {
                     let idx = self.get_document_index(self.document.get_cursor());
@@ -99,15 +100,14 @@ impl Mode for InsertMode{
                         self.document.insert(self.get_document_index(self.document.get_cursor()), ch.to_string());
                         if ch == '\n'{
                             self.update_lines_lenghts();
-                            self.document.get_cursor_mut().inc_y();
+                            self.document.inc_y();
                         }
                         else{
                             // self.increment_lenght(self.cursor_pos.y - 1);
-                            self.document.get_cursor_mut().inc_x();
+                            self.document.inc_x();
                         }
-                        
                     }
-                    self.update();
+                    self.update(stdout);
                 }
                 _ => {}
             }
@@ -148,39 +148,6 @@ impl InsertMode{
         }
         CursorPos::new(x, y)
     }
-
-    // fn dec_x(&mut self){
-        
-    //     if self.cursor_pos.x == 1 && self.cursor_pos.y != 1{
-    //         self.dec_y();
-    //         self.cursor_pos.x = self.get_line_length(self.cursor_pos.y - 1) + 1;
-    //         return
-    //     }
-    //     self.cursor_pos.x = max(self.cursor_pos.x - 1, 1); 
-    // }
-
-    // fn inc_x(&mut self){
-    //     if self.cursor_pos.x == self.get_line_length(self.cursor_pos.y - 1) + 1 && self.cursor_pos.y != self.get_num_lines(){
-    //         self.inc_y();
-    //         self.cursor_pos.x = 1;
-    //     }else{
-    //         self.cursor_pos.x = min(self.cursor_pos.x + 1, self.get_line_length(self.cursor_pos.y - 1) + 1)
-    //     }
-    // }
-
-    // fn inc_y(&mut self){
-    //     if self.cursor_pos.y == self.get_num_lines(){
-    //         return;
-    //     } 
-    //     self.cursor_pos.y += 1;
-    // }
-
-    // fn dec_y(&mut self){
-    //     if self.cursor_pos.y == 1{
-    //         return
-    //     }
-    //     self.cursor_pos.y -= 1;
-    // }
 
     fn update_lines_lenghts(&mut self){
         self.document.recalculate_line_lenghts();
