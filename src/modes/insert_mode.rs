@@ -71,14 +71,21 @@ impl Mode for InsertMode{
                         continue;
                     }
                     self.document.dec_x();
+                    let str: String;
                     if self.document.get_cursor().get_x() == 1 {
-                        let str = self.document.remove(self.get_document_index(self.document.get_cursor()), 1);
-                        self.document.push_to_undo_redo(ReversableFunction::new(Funcs::Remove, idx, str));
+                        str = self.document.remove(self.get_document_index(self.document.get_cursor()), 1);
                     }
                     else{
-                        let str = self.document.remove(self.get_document_index(self.document.get_cursor()), 1);
-                        self.document.push_to_undo_redo(ReversableFunction::new(Funcs::Remove, idx, str));
+                        str = self.document.remove(self.get_document_index(self.document.get_cursor()), 1);
                     }
+                    let mut new_cursor = self.document.get_cursor().clone();
+                    new_cursor.inc_x();
+                    self.document.push_to_undo_redo(ReversableFunction::new(
+                        Funcs::Remove, 
+                        idx, 
+                        str,
+                        new_cursor
+                    ));
                     self.update_lines_lenghts();
                     self.update(stdout);
                 }
@@ -88,7 +95,12 @@ impl Mode for InsertMode{
                         continue;
                     }
                     let str = self.document.remove(idx, 1);
-                    self.document.push_to_undo_redo(ReversableFunction::new(Funcs::Delete, self.get_document_index(self.document.get_cursor()), str));
+                    self.document.push_to_undo_redo(ReversableFunction::new(
+                        Funcs::Delete,
+                        idx,
+                        str,
+                        self.document.get_cursor().clone()
+                    ));
                     self.update_lines_lenghts();
                     self.update(stdout);
                 }
@@ -96,10 +108,16 @@ impl Mode for InsertMode{
                     let idx = self.get_document_index(self.document.get_cursor());
                     if idx > self.document.get_length(){}
                     else{
-                        self.document.push_to_undo_redo(ReversableFunction::new(Funcs::Insert, self.get_document_index(self.document.get_cursor()), ch.to_string()));
+                        self.document.push_to_undo_redo(ReversableFunction::new(
+                            Funcs::Insert, 
+                            self.get_document_index(self.document.get_cursor()), 
+                            ch.to_string(),
+                            self.document.get_cursor().clone()
+                        ));
                         self.document.insert(self.get_document_index(self.document.get_cursor()), ch.to_string());
                         if ch == '\n'{
                             self.update_lines_lenghts();
+                            self.document.get_cursor_mut().set_max_newline();
                             self.document.inc_y();
                         }
                         else{

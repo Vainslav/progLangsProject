@@ -30,7 +30,7 @@ impl UndoRedoManager{
             self.pointer -= 1;
             return self.stack.last()
         }
-        else if self.pointer >= 0 || self.stack.len() != 0{
+        else if self.pointer >= 0{
             self.pointer -= 1;
             return self.stack.get((self.pointer + 1) as usize);
         }else{

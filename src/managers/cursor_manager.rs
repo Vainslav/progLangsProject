@@ -1,3 +1,4 @@
+#[derive(Clone)]
 pub struct CursorPos{
     x: usize,
     y: usize,
@@ -51,6 +52,10 @@ impl CursorPos{
 
     pub fn get_max(&self) -> usize{
         self.max
+    }
+
+    pub fn set_max_newline(&mut self){
+        self.max = 1;
     }
 }
 

@@ -71,12 +71,14 @@ impl TextManager{
 
     pub fn undo(&mut self){
         let function = self.undo_redo.undo();
-        if !function.is_none(){
+        let mut function_cursor:Option<&CursorPos> = None;
+        if function.is_some(){
             let reversable_function = function.unwrap();
+            function_cursor = Some(&reversable_function.cursor);
+            let text = &self.text.get_text();
             match reversable_function.func{
                 Funcs::Insert => {
                     self.text.remove(reversable_function.index, reversable_function.string.chars().count());
-                    // self.cursor = Self::get_cursor_from_index(reversable_function.index, self.get_line_lenght_vec())
                 }
                 Funcs::Remove => {
                     self.text.insert({ 
@@ -86,25 +88,34 @@ impl TextManager{
                             reversable_function.index - reversable_function.string.chars().count()
                         }
                     }, reversable_function.string.clone());
-                    // self.cursor_pos = Self::get_cursor_from_index(reversable_function.index + reversable_function.string.chars().count(), self.get_line_lenght_vec())
+                    self.lines_manager.recalculate_line_lenghts(self.text.get_text());
                 }
                 Funcs::Delete => {
                     self.text.insert(reversable_function.index, reversable_function.string.clone());
-                    // self.cursor_pos = Self::get_cursor_from_index(reversable_function.index + reversable_function.string.chars().count(), self.get_line_lenght_vec())
+                    self.lines_manager.recalculate_line_lenghts(self.text.get_text());
                 }
             }
+            self.cursor.set_x(reversable_function.get_cursor().get_x());
+            self.cursor.set_y(reversable_function.get_cursor().get_y());
         }
-        self.update_lines_lenghts();
+        
+        self.lines_manager.recalculate_line_lenghts(self.text.get_text());
+        if function_cursor.is_some(){
+            let new_cursor = function_cursor.unwrap();
+            
+        }
     }
 
     pub fn redo(&mut self){
         let function = self.undo_redo.redo();
+        let mut function_cursor:Option<&CursorPos> = None;
         if !function.is_none(){
+            let text = &self.text.get_text();
             let reversable_function = function.unwrap();
+            function_cursor = Some(&reversable_function.cursor);
             match reversable_function.func{
                 Funcs::Insert => {
                     self.text.insert(reversable_function.index, reversable_function.string.clone());
-                    // self.cursor = Self::get_cursor_from_index(reversable_function.index, self.get_line_lenght_vec())
                 }
                 Funcs::Remove => {
                     self.text.remove({ 
@@ -114,15 +125,20 @@ impl TextManager{
                             reversable_function.index - reversable_function.string.chars().count()
                         }
                     }, reversable_function.string.chars().count());
-                    // self.cursor = Self::get_cursor_from_index(reversable_function.index, self.get_line_lenght_vec());
                 }
                 Funcs::Delete => {
                     self.text.remove(reversable_function.index, reversable_function.string.chars().count());
-                    // self.cursor = Self::get_cursor_from_index(reversable_function.index + reversable_function.string.chars().count(), self.get_line_lenght_vec())
                 }
             }
+            self.cursor.set_x(reversable_function.get_cursor().get_x());
+            self.cursor.set_y(reversable_function.get_cursor().get_y());
         }
-        self.update_lines_lenghts();
+        self.lines_manager.recalculate_line_lenghts(self.text.get_text());
+        if function_cursor.is_some(){
+            let new_cursor = function_cursor.unwrap();
+            // self.cursor.set_x(new_cursor.get_x());
+            // self.cursor.set_y(new_cursor.get_y());
+        }
     }
 
     pub fn push_to_undo_redo(&mut self, func: ReversableFunction){
@@ -174,4 +190,28 @@ impl TextManager{
         self.cursor.dec_y();
         self.cursor.set_x(min(self.cursor.get_max(), self.get_line_length(self.cursor.get_y() - 1) + 1));
     }
+}
+
+fn find_cursor_position(text: &str, index: usize) -> Option<CursorPos> {
+    let mut x = 1;
+    let mut y = 1;
+    let mut last_newline_index = 0;
+
+    for (i, c) in text.chars().enumerate() {
+        if i == index {
+            x = i - last_newline_index;
+            return Some(CursorPos::new(x, y));
+        }
+        if c == '\n' {
+            y += 1;
+            last_newline_index = i + 1;
+        }
+    }
+
+    if index == text.len() {
+        x = text.len() - last_newline_index;
+        return Some(CursorPos::new(x, y));
+    }
+
+    None
 }
