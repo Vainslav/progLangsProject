@@ -8,10 +8,10 @@ pub enum Funcs{
 }
 
 pub struct ReversableFunction{
-    pub func: Funcs,
-    pub index: usize,
-    pub string: String,
-    pub cursor: CursorPos
+    func: Funcs,
+    index: usize,
+    string: String,
+    cursor: CursorPos
 }
 
 impl ReversableFunction {

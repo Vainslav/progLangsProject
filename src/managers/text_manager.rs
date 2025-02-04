@@ -74,24 +74,24 @@ impl TextManager{
         let mut function_cursor:Option<&CursorPos> = None;
         if function.is_some(){
             let reversable_function = function.unwrap();
-            function_cursor = Some(&reversable_function.cursor);
+            function_cursor = Some(reversable_function.get_cursor());
             let text = &self.text.get_text();
-            match reversable_function.func{
+            match reversable_function.get_func(){
                 Funcs::Insert => {
-                    self.text.remove(reversable_function.index, reversable_function.string.chars().count());
+                    self.text.remove(*reversable_function.get_index(), reversable_function.get_string().chars().count());
                 }
                 Funcs::Remove => {
                     self.text.insert({ 
-                        if reversable_function.index <= reversable_function.string.chars().count(){
+                        if reversable_function.get_index() <= &reversable_function.get_string().chars().count(){
                             0
                         }else{
-                            reversable_function.index - reversable_function.string.chars().count()
+                            reversable_function.get_index() - reversable_function.get_string().chars().count()
                         }
-                    }, reversable_function.string.clone());
+                    }, reversable_function.get_string().clone());
                     self.lines_manager.recalculate_line_lenghts(self.text.get_text());
                 }
                 Funcs::Delete => {
-                    self.text.insert(reversable_function.index, reversable_function.string.clone());
+                    self.text.insert(*reversable_function.get_index(), reversable_function.get_string().clone());
                     self.lines_manager.recalculate_line_lenghts(self.text.get_text());
                 }
             }
@@ -112,22 +112,22 @@ impl TextManager{
         if !function.is_none(){
             let text = &self.text.get_text();
             let reversable_function = function.unwrap();
-            function_cursor = Some(&reversable_function.cursor);
-            match reversable_function.func{
+            function_cursor = Some(reversable_function.get_cursor());
+            match reversable_function.get_func(){
                 Funcs::Insert => {
-                    self.text.insert(reversable_function.index, reversable_function.string.clone());
+                    self.text.insert(*reversable_function.get_index(), reversable_function.get_string().clone());
                 }
                 Funcs::Remove => {
                     self.text.remove({ 
-                        if reversable_function.index <= reversable_function.string.chars().count(){
+                        if reversable_function.get_index() <= &reversable_function.get_string().chars().count(){
                             0
                         }else{
-                            reversable_function.index - reversable_function.string.chars().count()
+                            reversable_function.get_index() - reversable_function.get_string().chars().count()
                         }
-                    }, reversable_function.string.chars().count());
+                    }, reversable_function.get_string().chars().count());
                 }
                 Funcs::Delete => {
-                    self.text.remove(reversable_function.index, reversable_function.string.chars().count());
+                    self.text.remove(*reversable_function.get_index(), reversable_function.get_string().chars().count());
                 }
             }
             self.cursor.set_x(reversable_function.get_cursor().get_x());
