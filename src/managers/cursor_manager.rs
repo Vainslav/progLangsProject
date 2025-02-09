@@ -32,13 +32,6 @@ impl CursorPos{
 
     pub fn set_y_actual(&mut self, new_y: usize){
         self.y_actual = new_y;
-        self.y_display = {
-            if self.y_actual > (termion::terminal_size().unwrap().1 - 1) as usize{
-                termion::terminal_size().unwrap().1
-            }else{
-                self.y_actual as u16
-            }
-        }
     }
 
     pub fn inc_x(&mut self){

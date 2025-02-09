@@ -36,11 +36,16 @@ impl Document {
 
 
     pub fn insert(&mut self, index: usize, str: String){
+        let old_cursor = self.get_cursor().to_owned();
         self.text.insert(index, str);
+        self.text.update_offset(&old_cursor);
     }
 
     pub fn remove(&mut self, index: usize, length: usize) -> String{
-        self.text.remove(index, length)
+        let old_cursor = self.get_cursor().to_owned();
+        let string = self.text.remove(index, length);
+        self.text.update_offset(&old_cursor);
+        string
     }
 
     pub fn get_text(&self) -> String{
@@ -70,13 +75,13 @@ impl Document {
 
 
     pub fn undo(&mut self){
-        let old_cursor = self.text.get_cursor().to_owned();
+        let old_cursor = self.get_cursor().to_owned();
         self.text.undo();
         self.text.update_offset(&old_cursor);
     }
 
     pub fn redo(&mut self){
-        let old_cursor = self.text.get_cursor().to_owned();
+        let old_cursor = self.get_cursor().to_owned();
         self.text.redo();
         self.text.update_offset(&old_cursor);
     }
@@ -117,5 +122,10 @@ impl Document {
         let old_cursor = self.text.get_cursor().to_owned();
         self.text.dec_y();
         self.text.update_offset(&old_cursor);
+    }
+
+    
+    pub fn get_offset(&self) -> (usize, usize){
+        self.text.get_offset()
     }
 }

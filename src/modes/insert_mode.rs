@@ -1,6 +1,7 @@
 use std::thread;
 use std::time::Duration;
 
+use termion::event::Event;
 use termion::event::Key;
 use termion::input::TermRead;
 use termion::raw::RawTerminal;
@@ -43,7 +44,7 @@ impl Mode for InsertMode{
 
     fn run(&mut self, stdout: &mut RawTerminal<Stdout>){
         self.update(stdout);
-        let mut keys = termion::async_stdin().keys();
+        let mut events = termion::async_stdin().events();
         let mut last_terminal_size = terminal_size().unwrap();
         loop{
             if last_terminal_size != terminal_size().unwrap() {
@@ -51,43 +52,43 @@ impl Mode for InsertMode{
                 
                 self.update(stdout);
             }
-            match keys.next() {
+            match events.next() {
                 Some(c) => {
                     match c {
                         Ok(c) => {
                             match c {
-                                Key::Ctrl('q') => {
+                                Event::Key(Key::Ctrl('q')) => {
                                     self.document.save();
                                     break;
                                 }
-                                Key::Ctrl('c') => {
+                                Event::Key(Key::Ctrl('c')) => {
                                     break;
                                 }
-                                Key::Ctrl('z') => {
+                                Event::Key(Key::Ctrl('z')) => {
                                     self.document.undo();
                                     self.update(stdout);
                                 }
-                                Key::Ctrl('y') => {
+                                Event::Key(Key::Ctrl('y')) => {
                                     self.document.redo();
                                     self.update(stdout);
                                 }
-                                Key::Left => {
+                                Event::Key(Key::Left) => {
                                     self.document.move_cursor_left();
                                     self.update(stdout);
                                 }
-                                Key::Right => {
+                                Event::Key(Key::Right) => {
                                     self.document.move_cursor_right();
                                     self.update(stdout);
                                 }
-                                Key::Up => {
+                                Event::Key(Key::Up) => {
                                     self.document.move_cursor_up();
                                     self.update(stdout);
                                 }
-                                Key::Down => {
+                                Event::Key(Key::Down) => {
                                     self.document.move_cursor_down();
                                     self.update(stdout);
                                 }
-                                Key::Backspace => {
+                                Event::Key(Key::Backspace) => {
                                     let idx = self.get_document_index(self.document.get_cursor());
                                     if self.document.get_cursor().get_x_actual() == 1 && self.document.get_cursor().get_y_actual() == 1{
                                         continue;
@@ -107,7 +108,7 @@ impl Mode for InsertMode{
                                     self.update_lines_lenghts();
                                     self.update(stdout);
                                 }
-                                Key::Delete => {
+                                Event::Key(Key::Delete) => {
                                     let idx = self.get_document_index(self.document.get_cursor());
                                     if idx >= self.document.get_length(){
                                         continue;
@@ -122,7 +123,7 @@ impl Mode for InsertMode{
                                     self.update_lines_lenghts();
                                     self.update(stdout);
                                 }
-                                Key::Char(ch) => {
+                                Event::Key(Key::Char(ch)) => {
                                     let idx = self.get_document_index(self.document.get_cursor());
                                     if idx > self.document.get_length(){}
                                     else{
@@ -153,7 +154,7 @@ impl Mode for InsertMode{
                 }
                 None => {}
             }
-            thread::sleep(Duration::from_millis(10));
+            thread::sleep(Duration::from_millis(1));
         }
     }
 }

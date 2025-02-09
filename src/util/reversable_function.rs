@@ -11,7 +11,7 @@ pub struct ReversableFunction{
     func: Funcs,
     index: usize,
     string: String,
-    cursor: CursorPos
+    cursor: CursorPos,
 }
 
 impl ReversableFunction {
@@ -20,7 +20,7 @@ impl ReversableFunction {
             func: fun,
             index: idx,
             string: str,
-            cursor: cursor
+            cursor: cursor,
         }
     }
 

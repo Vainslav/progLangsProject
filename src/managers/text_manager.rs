@@ -100,8 +100,11 @@ impl TextManager{
                     self.lines_manager.recalculate_line_lenghts(self.text.get_text());
                 }
             }
+            // self.offset = reversable_function.get_offset().to_owned();
             self.cursor.set_x_actual(reversable_function.get_cursor().get_x_actual());
             self.cursor.set_y_actual(reversable_function.get_cursor().get_y_actual());
+            self.cursor.set_x_display(reversable_function.get_cursor().get_x_display());
+            self.cursor.set_y_display(reversable_function.get_cursor().get_y_display());
         }
         
         self.lines_manager.recalculate_line_lenghts(self.text.get_text());
@@ -128,8 +131,11 @@ impl TextManager{
                     self.text.remove(*reversable_function.get_index(), reversable_function.get_string().chars().count());
                 }
             }
+            // self.offset = reversable_function.get_offset().to_owned();
             self.cursor.set_x_actual(reversable_function.get_cursor().get_x_actual());
             self.cursor.set_y_actual(reversable_function.get_cursor().get_y_actual());
+            self.cursor.set_x_display(reversable_function.get_cursor().get_x_display());
+            self.cursor.set_y_display(reversable_function.get_cursor().get_y_display());
         }
 
         self.lines_manager.recalculate_line_lenghts(self.text.get_text());
@@ -195,11 +201,14 @@ impl TextManager{
     pub fn update_offset(&mut self, old_cursor: &CursorPos){
         let old_x = old_cursor.get_x_actual();
         let old_y = old_cursor.get_y_actual();
+        
+        let terminal_size = terminal_size().unwrap();
 
         if old_x < self.cursor.get_x_actual(){
-            if self.cursor.get_x_actual() - old_x > (terminal_size().unwrap().0 - self.cursor.get_x_display()) as usize{
-                self.offset.0 = self.cursor.get_x_actual() - terminal_size().unwrap().0 as usize;
-                self.cursor.set_x_display(terminal_size().unwrap().0);  
+            print!("[{old_x},{},{}]", self.cursor.get_x_actual(), self.cursor.get_x_display());
+            if self.cursor.get_x_actual() - old_x > (terminal_size.0 - self.cursor.get_x_display()) as usize && self.cursor.get_x_actual() > terminal_size.0 as usize{
+                self.offset.0 = self.cursor.get_x_actual() - terminal_size.0 as usize;
+                self.cursor.set_x_display(terminal_size.0);  
             }
         }else if old_x > self.cursor.get_x_actual(){
             if old_x - self.cursor.get_x_actual() > (self.cursor.get_x_display() - 1) as usize{
@@ -209,9 +218,10 @@ impl TextManager{
         }
 
         if old_y < self.cursor.get_y_actual(){
-            if self.cursor.get_y_actual() - old_y > (terminal_size().unwrap().1 - 1 - self.cursor.get_y_display()) as usize{
-                self.offset.1 = self.cursor.get_y_actual() + 1 - terminal_size().unwrap().1 as usize;
-                self.cursor.set_y_display(terminal_size().unwrap().1);
+            print!("[{old_y},{},{}]", self.cursor.get_y_actual(), self.cursor.get_y_display());
+            if self.cursor.get_y_actual() - old_y > (terminal_size.1 - 1 - self.cursor.get_y_display()) as usize{
+                self.offset.1 = self.cursor.get_y_actual() + 1 - terminal_size.1 as usize;
+                self.cursor.set_y_display(terminal_size.1);
             }
         }else if old_y > self.cursor.get_y_actual(){
             if old_y - self.cursor.get_y_actual() > (self.cursor.get_y_display() - 1) as usize{
@@ -221,25 +231,8 @@ impl TextManager{
         }
     }
 
-
-    pub fn update_x_offset(&mut self){
-        if self.get_cursor().get_x_display() == terminal_size().unwrap().0 {
-            self.offset.0 += 1; //self.get_cursor().get_x_actual() - terminal_size().unwrap().0 as usize;
-        } else if self.get_cursor().get_x_display() == 1{
-            if self.offset.0 != 0{
-                self.offset.0 -= 1;
-            }
-        }
-    }
-
-    pub fn update_y_offset(&mut self){
-        if self.get_cursor().get_y_display() == terminal_size().unwrap().1 {
-            self.offset.1 += 1; //self.get_cursor().get_x_actual() - terminal_size().unwrap().0 as usize;
-        } else if self.get_cursor().get_y_display() == 1{
-            if self.offset.1 != 0{
-                self.offset.1 -= 1;
-            }
-        }
+    pub fn get_offset(&self) -> (usize, usize){
+        self.offset
     }
 }
 
