@@ -101,8 +101,8 @@ impl CursorPos{
 
     pub fn set_y_display(&mut self, new_y: u16){
         self.y_display = {
-            if new_y > termion::terminal_size().unwrap().1{
-                termion::terminal_size().unwrap().1
+            if new_y > termion::terminal_size().unwrap().1 - 1{
+                termion::terminal_size().unwrap().1 - 1
             }else{
                 new_y
             }

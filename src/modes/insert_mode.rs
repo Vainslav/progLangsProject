@@ -167,7 +167,7 @@ impl InsertMode{
 
     fn get_document_index(&self, cursor: &CursorPos) -> usize{
         let mut idx: usize = 0;
-        for (i, line) in self.document.get_text().lines().enumerate(){
+        for (i, line) in self.document.get_all_text().lines().enumerate(){
             if i == cursor.get_y_actual() - 1{
                 break
             } 

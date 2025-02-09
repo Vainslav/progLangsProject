@@ -210,16 +210,18 @@ impl TextManager{
 
         if old_y < self.cursor.get_y_actual(){
             if self.cursor.get_y_actual() - old_y > (terminal_size().unwrap().1 - 1 - self.cursor.get_y_display()) as usize{
-                self.offset.1 = self.cursor.get_y_actual() - terminal_size().unwrap().1 as usize;
-                self.cursor.set_y_display(terminal_size().unwrap().1);  
+                self.offset.1 = self.cursor.get_y_actual() + 1 - terminal_size().unwrap().1 as usize;
+                self.cursor.set_y_display(terminal_size().unwrap().1);
             }
         }else if old_y > self.cursor.get_y_actual(){
-            if old_y - self.cursor.get_y_actual() > self.cursor.get_y_display() as usize{
+            if old_y - self.cursor.get_y_actual() > (self.cursor.get_y_display() - 1) as usize{
                 self.offset.1 = self.cursor.get_y_actual() - 1;
                 self.cursor.set_y_display(1);
             }
         }
     }
+
+
     pub fn update_x_offset(&mut self){
         if self.get_cursor().get_x_display() == terminal_size().unwrap().0 {
             self.offset.0 += 1; //self.get_cursor().get_x_actual() - terminal_size().unwrap().0 as usize;
