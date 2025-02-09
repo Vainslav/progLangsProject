@@ -8,7 +8,6 @@ use std::process::exit;
 pub struct Document{
     text: TextManager,
     file_name: String,
-    offset: (usize, usize),
 }
 
 impl Document {
@@ -23,7 +22,6 @@ impl Document {
         Document{
             text: text,
             file_name: file_name,
-            offset: (0, 0),
         }
     }
 
@@ -46,7 +44,7 @@ impl Document {
     }
 
     pub fn get_text(&self) -> String{
-        remove_prefix_and_update_lines(self.text.get_text(), self.offset.0, terminal_size().unwrap().0 as usize, self.offset.1, (terminal_size().unwrap().1 - 1) as usize)
+        self.text.get_text()
     }
 
     pub fn get_all_text(&self) -> String{
@@ -119,9 +117,5 @@ impl Document {
         let old_cursor = self.text.get_cursor().to_owned();
         self.text.dec_y();
         self.text.update_offset(&old_cursor);
-    }
-
-    pub fn update_offset(&mut self){
-        
     }
 }
