@@ -1,11 +1,14 @@
-use crate::util::reversable_function::ReversableFunction;
+use termion::terminal_size;
+
+use crate::util::{reversable_function::ReversableFunction, string_util::remove_prefix_and_update_lines};
 
 use super::{cursor_manager::CursorPos, text_manager::TextManager};
 use std::process::exit;
 
 pub struct Document{
     text: TextManager,
-    file_name: String
+    file_name: String,
+    offset: (usize, usize),
 }
 
 impl Document {
@@ -19,12 +22,13 @@ impl Document {
         };
         Document{
             text: text,
-            file_name: file_name
+            file_name: file_name,
+            offset: (0, 0),
         }
     }
 
     pub fn save(&self){
-        std::fs::write(&self.file_name, self.text.get_text()).expect("Error writing to file");
+        std::fs::write(&self.file_name, self.text.get_all_text()).expect("Error writing to file");
     }
 
     pub fn change_file(&mut self, file_name: String){
@@ -42,10 +46,12 @@ impl Document {
     }
 
     pub fn get_text(&self) -> String{
-        self.text.get_text()
+        remove_prefix_and_update_lines(self.text.get_text(), self.offset.0, terminal_size().unwrap().0 as usize, self.offset.1, (terminal_size().unwrap().1 - 1) as usize)
     }
 
-
+    pub fn get_all_text(&self) -> String{
+        self.text.get_all_text()
+    }
 
     pub fn recalculate_line_lenghts(&mut self){
         self.text.update_lines_lenghts();
@@ -66,11 +72,15 @@ impl Document {
 
 
     pub fn undo(&mut self){
+        let old_cursor = self.text.get_cursor().to_owned();
         self.text.undo();
+        self.text.update_offset(&old_cursor);
     }
 
     pub fn redo(&mut self){
+        let old_cursor = self.text.get_cursor().to_owned();
         self.text.redo();
+        self.text.update_offset(&old_cursor);
     }
 
     pub fn push_to_undo_redo(&mut self, func: ReversableFunction){
@@ -87,19 +97,31 @@ impl Document {
         self.text.get_cursor_mut()
     }
 
-    pub fn inc_x(&mut self){
+    pub fn move_cursor_right(&mut self){
+        let old_cursor = self.text.get_cursor().to_owned();
         self.text.inc_x();
+        self.text.update_offset(&old_cursor);
     }
 
-    pub fn inc_y(&mut self){
+    pub fn move_cursor_down(&mut self){
+        let old_cursor = self.text.get_cursor().to_owned();
         self.text.inc_y();
+        self.text.update_offset(&old_cursor);
     }
 
-    pub fn dec_x(&mut self){
+    pub fn move_cursor_left(&mut self){
+        let old_cursor = self.text.get_cursor().to_owned();
         self.text.dec_x();
+        self.text.update_offset(&old_cursor);
     }
 
-    pub fn dec_y(&mut self){
+    pub fn move_cursor_up(&mut self){
+        let old_cursor = self.text.get_cursor().to_owned();
         self.text.dec_y();
+        self.text.update_offset(&old_cursor);
+    }
+
+    pub fn update_offset(&mut self){
+        
     }
 }

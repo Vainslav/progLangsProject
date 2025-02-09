@@ -1,10 +1,10 @@
-use std::io::stdin;
-use std::cmp::{min, max};
+use std::thread;
+use std::time::Duration;
 
 use termion::event::Key;
 use termion::input::TermRead;
-use termion::screen::AlternateScreen;
 use termion::raw::RawTerminal;
+use termion::terminal_size;
 
 use std::io::Stdout;
 use std::io::Write;
@@ -19,116 +19,141 @@ pub struct InsertMode{
     document: Document,
 }
 
+// static mut CNT:u16 = 0; //debug
+
 impl Mode for InsertMode{
     fn update(&self, stdout: &mut RawTerminal<Stdout>){
+        let terminal_size = terminal_size().unwrap();
         write!(stdout, "{}{}", termion::clear::All, termion::cursor::Goto(1,1)).unwrap();
         write!(stdout, "{}", self.document.get_text().replace("\n", "\n\r")).unwrap();
-        write!(stdout, "{}", termion::cursor::Goto(self.document.get_cursor().get_x() as u16, self.document.get_cursor().get_y() as u16)).unwrap();
+        if terminal_size.1 >= 30 && terminal_size.0 >= 100{
+            write!(stdout, "{}", termion::cursor::Goto(1, terminal_size.1)).unwrap();
+            write!(stdout, "--INSERT--").unwrap();
+            write!(stdout, "{}", termion::cursor::Goto(terminal_size.0 - 30, terminal_size.1)).unwrap();
+            write!(stdout, "{} , {}", self.document.get_cursor().get_x_actual(), self.document.get_cursor().get_y_actual()).unwrap();
+            write!(stdout, "[{} , {}]", terminal_size.0, terminal_size.1).unwrap();
+            // unsafe{
+            //     write!(stdout, "[{}]", CNT).unwrap(); // debug
+            //     CNT += 1
+            // }
+        }
+        write!(stdout, "{}", termion::cursor::Goto(self.document.get_cursor().get_x_display(), self.document.get_cursor().get_y_display())).unwrap();
         stdout.flush().unwrap();
     }
 
     fn run(&mut self, stdout: &mut RawTerminal<Stdout>){
         self.update(stdout);
-        let stdin = stdin();
-        for c in stdin.keys() {
-            match c.unwrap() {
-                Key::Ctrl('q') => {
-                    self.document.save();
-                    break;
-                }
-                Key::Ctrl('c') => {
-                    break;
-                }
-                Key::Ctrl('z') => {
-                    self.document.undo();
-                    self.update(stdout);
-                }
-                Key::Ctrl('y') => {
-                    self.document.redo();
-                    self.update(stdout);
-                }
-                Key::Left => {
-                    self.document.dec_x();
-                    self.update(stdout);
-                }
-                Key::Right => {
-                    self.document.inc_x();
-                    self.update(stdout);
-                }
-                Key::Up => {
-                    self.document.dec_y();
-                    // self.cursor_pos.x = min(self.cursor_pos.x, self.get_line_length(self.cursor_pos.y - 1) + 1);
-                    self.update(stdout);
-                }
-                Key::Down => {
-                    self.document.inc_y();
-                    // self.cursor_pos.x = min(self.cursor_pos.x, self.get_line_length(self.cursor_pos.y - 1) + 1);
-                    self.update(stdout);
-                }
-                Key::Backspace => {
-                    let idx = self.get_document_index(self.document.get_cursor());
-                    if self.document.get_cursor().get_x() == 1 && self.document.get_cursor().get_y() == 1{
-                        continue;
-                    }
-                    self.document.dec_x();
-                    let str: String;
-                    if self.document.get_cursor().get_x() == 1 {
-                        str = self.document.remove(self.get_document_index(self.document.get_cursor()), 1);
-                    }
-                    else{
-                        str = self.document.remove(self.get_document_index(self.document.get_cursor()), 1);
-                    }
-                    let mut new_cursor = self.document.get_cursor().clone();
-                    new_cursor.inc_x();
-                    self.document.push_to_undo_redo(ReversableFunction::new(
-                        Funcs::Remove, 
-                        idx, 
-                        str,
-                        new_cursor
-                    ));
-                    self.update_lines_lenghts();
-                    self.update(stdout);
-                }
-                Key::Delete => {
-                    let idx = self.get_document_index(self.document.get_cursor());
-                    if idx >= self.document.get_length(){
-                        continue;
-                    }
-                    let str = self.document.remove(idx, 1);
-                    self.document.push_to_undo_redo(ReversableFunction::new(
-                        Funcs::Delete,
-                        idx,
-                        str,
-                        self.document.get_cursor().clone()
-                    ));
-                    self.update_lines_lenghts();
-                    self.update(stdout);
-                }
-                Key::Char(ch)=> {
-                    let idx = self.get_document_index(self.document.get_cursor());
-                    if idx > self.document.get_length(){}
-                    else{
-                        self.document.push_to_undo_redo(ReversableFunction::new(
-                            Funcs::Insert, 
-                            self.get_document_index(self.document.get_cursor()), 
-                            ch.to_string(),
-                            self.document.get_cursor().clone()
-                        ));
-                        self.document.insert(self.get_document_index(self.document.get_cursor()), ch.to_string());
-                        if ch == '\n'{
-                            self.update_lines_lenghts();
-                            self.document.get_cursor_mut().set_max_newline();
-                            self.document.inc_y();
-                        }
-                        else{
-                            // self.increment_lenght(self.cursor_pos.y - 1);
-                            self.document.inc_x();
-                        }
-                    }
-                    self.update(stdout);
-                }
-                _ => {}
+        let mut keys = termion::async_stdin().keys();
+        let mut last_terminal_size = terminal_size().unwrap();
+        loop{
+            if last_terminal_size != terminal_size().unwrap() {
+                last_terminal_size = terminal_size().unwrap();
+                
+                self.update(stdout);
             }
+            match keys.next() {
+                Some(c) => {
+                    match c {
+                        Ok(c) => {
+                            match c {
+                                Key::Ctrl('q') => {
+                                    self.document.save();
+                                    break;
+                                }
+                                Key::Ctrl('c') => {
+                                    break;
+                                }
+                                Key::Ctrl('z') => {
+                                    self.document.undo();
+                                    self.update(stdout);
+                                }
+                                Key::Ctrl('y') => {
+                                    self.document.redo();
+                                    self.update(stdout);
+                                }
+                                Key::Left => {
+                                    self.document.move_cursor_left();
+                                    self.update(stdout);
+                                }
+                                Key::Right => {
+                                    self.document.move_cursor_right();
+                                    self.update(stdout);
+                                }
+                                Key::Up => {
+                                    self.document.move_cursor_up();
+                                    self.update(stdout);
+                                }
+                                Key::Down => {
+                                    self.document.move_cursor_down();
+                                    self.update(stdout);
+                                }
+                                Key::Backspace => {
+                                    let idx = self.get_document_index(self.document.get_cursor());
+                                    if self.document.get_cursor().get_x_actual() == 1 && self.document.get_cursor().get_y_actual() == 1{
+                                        continue;
+                                    }
+                                    self.document.move_cursor_left();
+
+                                    let str = self.document.remove(self.get_document_index(self.document.get_cursor()), 1);
+
+                                    let mut new_cursor = self.document.get_cursor().clone();
+                                    new_cursor.inc_x();
+                                    self.document.push_to_undo_redo(ReversableFunction::new(
+                                        Funcs::Remove, 
+                                        idx, 
+                                        str,
+                                        new_cursor
+                                    ));
+                                    self.update_lines_lenghts();
+                                    self.update(stdout);
+                                }
+                                Key::Delete => {
+                                    let idx = self.get_document_index(self.document.get_cursor());
+                                    if idx >= self.document.get_length(){
+                                        continue;
+                                    }
+                                    let str = self.document.remove(idx, 1);
+                                    self.document.push_to_undo_redo(ReversableFunction::new(
+                                        Funcs::Delete,
+                                        idx,
+                                        str,
+                                        self.document.get_cursor().clone()
+                                    ));
+                                    self.update_lines_lenghts();
+                                    self.update(stdout);
+                                }
+                                Key::Char(ch) => {
+                                    let idx = self.get_document_index(self.document.get_cursor());
+                                    if idx > self.document.get_length(){}
+                                    else{
+                                        self.document.push_to_undo_redo(ReversableFunction::new(
+                                            Funcs::Insert, 
+                                            self.get_document_index(self.document.get_cursor()), 
+                                            ch.to_string(),
+                                            self.document.get_cursor().clone()
+                                        ));
+                                        self.document.insert(self.get_document_index(self.document.get_cursor()), ch.to_string());
+                                        if ch == '\n'{
+                                            self.update_lines_lenghts();
+                                            self.document.get_cursor_mut().set_max_newline();
+                                            self.document.move_cursor_down();
+                                        }
+                                        else{
+                                            // self.increment_lenght(self.cursor_pos.y - 1);
+                                            self.document.move_cursor_right();
+                                        }
+                                    }
+                                    self.update(stdout);
+                                }
+                                _ => {}
+                            }
+                        }
+                        Err(_) => {}                        
+                    }
+                }
+                None => {}
+            }
+            thread::sleep(Duration::from_millis(10));
         }
     }
 }
@@ -143,12 +168,12 @@ impl InsertMode{
     fn get_document_index(&self, cursor: &CursorPos) -> usize{
         let mut idx: usize = 0;
         for (i, line) in self.document.get_text().lines().enumerate(){
-            if i == cursor.get_y() - 1{
+            if i == cursor.get_y_actual() - 1{
                 break
             } 
             idx += line.chars().count() + 1;
         }
-        idx + cursor.get_x() - 1
+        idx + cursor.get_x_actual() - 1
     }
 
     fn get_cursor_from_index(index: usize, line_lengths: Vec<usize>) -> CursorPos{
@@ -164,7 +189,7 @@ impl InsertMode{
                 break
             }
         }
-        CursorPos::new(x, y)
+        CursorPos::new(x as u16, y)
     }
 
     fn update_lines_lenghts(&mut self){

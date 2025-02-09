@@ -1,4 +1,3 @@
-use termion::screen::AlternateScreen;
 use termion::raw::RawTerminal;
 use std::io::Stdout;
 

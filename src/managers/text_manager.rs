@@ -1,13 +1,15 @@
 use std::fs::read_to_string;
-use std::io::stdin;
-use std::io::{Write, stdout, Error};
-use std::cmp::{min, max};
+use std::io::Error;
+use std::cmp::min;
+
+use termion::terminal_size;
 
 use crate::util::piece_table::PieceTable;
 use crate::managers::lines_manager::LinesManager;
 use crate::managers::undo_redo_manager::UndoRedoManager;
 use crate::util::reversable_function::Funcs;
 use crate::util::reversable_function::ReversableFunction;
+use crate::util::string_util::remove_prefix_and_update_lines;
 
 use super::cursor_manager::CursorPos;
 
@@ -16,6 +18,7 @@ pub struct TextManager{
     lines_manager: LinesManager,
     cursor: CursorPos,
     undo_redo: UndoRedoManager,
+    offset: (usize, usize)
 }
 
 
@@ -30,10 +33,15 @@ impl TextManager{
             lines_manager: lines_manager,
             cursor: CursorPos::new(1, 1),
             undo_redo: UndoRedoManager::new(),
+            offset: (0, 0),
         })
     }
 
     pub fn get_text(&self) -> String{
+        remove_prefix_and_update_lines(self.text.get_text(), self.offset.0, terminal_size().unwrap().0 as usize, self.offset.1, (terminal_size().unwrap().1 - 1) as usize)
+    }
+
+    pub fn get_all_text(&self) -> String{
         self.text.get_text()
     }
 
@@ -71,11 +79,8 @@ impl TextManager{
 
     pub fn undo(&mut self){
         let function = self.undo_redo.undo();
-        let mut function_cursor:Option<&CursorPos> = None;
         if function.is_some(){
             let reversable_function = function.unwrap();
-            function_cursor = Some(reversable_function.get_cursor());
-            let text = &self.text.get_text();
             match reversable_function.get_func(){
                 Funcs::Insert => {
                     self.text.remove(*reversable_function.get_index(), reversable_function.get_string().chars().count());
@@ -95,24 +100,17 @@ impl TextManager{
                     self.lines_manager.recalculate_line_lenghts(self.text.get_text());
                 }
             }
-            self.cursor.set_x(reversable_function.get_cursor().get_x());
-            self.cursor.set_y(reversable_function.get_cursor().get_y());
+            self.cursor.set_x_actual(reversable_function.get_cursor().get_x_actual());
+            self.cursor.set_y_actual(reversable_function.get_cursor().get_y_actual());
         }
         
         self.lines_manager.recalculate_line_lenghts(self.text.get_text());
-        if function_cursor.is_some(){
-            let new_cursor = function_cursor.unwrap();
-            
-        }
     }
 
     pub fn redo(&mut self){
         let function = self.undo_redo.redo();
-        let mut function_cursor:Option<&CursorPos> = None;
         if !function.is_none(){
-            let text = &self.text.get_text();
             let reversable_function = function.unwrap();
-            function_cursor = Some(reversable_function.get_cursor());
             match reversable_function.get_func(){
                 Funcs::Insert => {
                     self.text.insert(*reversable_function.get_index(), reversable_function.get_string().clone());
@@ -130,15 +128,11 @@ impl TextManager{
                     self.text.remove(*reversable_function.get_index(), reversable_function.get_string().chars().count());
                 }
             }
-            self.cursor.set_x(reversable_function.get_cursor().get_x());
-            self.cursor.set_y(reversable_function.get_cursor().get_y());
+            self.cursor.set_x_actual(reversable_function.get_cursor().get_x_actual());
+            self.cursor.set_y_actual(reversable_function.get_cursor().get_y_actual());
         }
+
         self.lines_manager.recalculate_line_lenghts(self.text.get_text());
-        if function_cursor.is_some(){
-            let new_cursor = function_cursor.unwrap();
-            // self.cursor.set_x(new_cursor.get_x());
-            // self.cursor.set_y(new_cursor.get_y());
-        }
     }
 
     pub fn push_to_undo_redo(&mut self, func: ReversableFunction){
@@ -156,62 +150,117 @@ impl TextManager{
     }
 
     pub fn inc_x(&mut self){
-        if self.cursor.get_x() == self.get_line_length(self.cursor.get_y() - 1) + 1 && self.cursor.get_y() != self.get_num_lines(){
+        if self.cursor.get_x_actual() == self.get_line_length(self.cursor.get_y_actual() - 1) + 1 && self.cursor.get_y_actual() != self.get_num_lines(){
             self.inc_y();
-            self.cursor.set_x(1);
-        }else{
-            self.cursor.set_x(min(self.cursor.get_x() + 1, self.get_line_length(self.cursor.get_y() - 1) + 1));
+            self.cursor.set_x_actual(1);
+            self.cursor.set_x_display(1);
+        }else if self.cursor.get_x_actual() != self.get_line_length(self.cursor.get_y_actual() - 1) + 1{
+            self.cursor.inc_x();
         }
         self.cursor.update_max();
     }
 
     pub fn inc_y(&mut self){
-        if self.cursor.get_y() == self.get_num_lines(){
+        if self.cursor.get_y_actual() == self.get_num_lines(){
             return;
-        } 
+        }
+
         self.cursor.inc_y();
-        self.cursor.set_x(min(self.cursor.get_max(), self.get_line_length(self.cursor.get_y() - 1) + 1));
+        self.cursor.set_x_actual(min(self.cursor.get_max(), self.get_line_length(self.cursor.get_y_actual() - 1) + 1));
+        self.cursor.set_x_display(min(self.cursor.get_max(), self.get_line_length(self.cursor.get_y_actual() - 1) + 1) as u16);
     }
 
     pub fn dec_x(&mut self){
-        if self.cursor.get_x() == 1 && self.cursor.get_y() != 1{
+        if self.cursor.get_x_actual() == 1 && self.cursor.get_y_actual() != 1{
             self.dec_y();
-            self.cursor.set_x(self.get_line_length(self.cursor.get_y() - 1) + 1);
-            return
+            self.cursor.set_x_actual(self.get_line_length(self.cursor.get_y_actual() - 1) + 1);
+            self.cursor.set_x_display((self.get_line_length(self.cursor.get_y_actual() - 1) + 1) as u16);
+        }else if self.cursor.get_x_actual() != 1{
+            self.cursor.dec_x();
         }
-        self.cursor.set_x(max(self.cursor.get_x() - 1, 1));
         self.cursor.update_max();
     }
 
     pub fn dec_y(&mut self){
-        if self.cursor.get_y() == 1{
+        if self.cursor.get_y_actual() == 1{
             return
         }
+
         self.cursor.dec_y();
-        self.cursor.set_x(min(self.cursor.get_max(), self.get_line_length(self.cursor.get_y() - 1) + 1));
+        self.cursor.set_x_actual(min(self.cursor.get_max(), self.get_line_length(self.cursor.get_y_actual() - 1) + 1));
+        self.cursor.set_x_display(min(self.cursor.get_max(), self.get_line_length(self.cursor.get_y_actual() - 1) + 1) as u16);
+    }
+
+
+    pub fn update_offset(&mut self, old_cursor: &CursorPos){
+        let old_x = old_cursor.get_x_actual();
+        let old_y = old_cursor.get_y_actual();
+
+        if old_x < self.cursor.get_x_actual(){
+            if self.cursor.get_x_actual() - old_x > (terminal_size().unwrap().0 - self.cursor.get_x_display()) as usize{
+                self.offset.0 = self.cursor.get_x_actual() - terminal_size().unwrap().0 as usize;
+                self.cursor.set_x_display(terminal_size().unwrap().0);  
+            }
+        }else if old_x > self.cursor.get_x_actual(){
+            if old_x - self.cursor.get_x_actual() > (self.cursor.get_x_display() - 1) as usize{
+                self.offset.0 = self.cursor.get_x_actual() - 1;
+                self.cursor.set_x_display(1);
+            }
+        }
+
+        if old_y < self.cursor.get_y_actual(){
+            if self.cursor.get_y_actual() - old_y > (terminal_size().unwrap().1 - 1 - self.cursor.get_y_display()) as usize{
+                self.offset.1 = self.cursor.get_y_actual() - terminal_size().unwrap().1 as usize;
+                self.cursor.set_y_display(terminal_size().unwrap().1);  
+            }
+        }else if old_y > self.cursor.get_y_actual(){
+            if old_y - self.cursor.get_y_actual() > self.cursor.get_y_display() as usize{
+                self.offset.1 = self.cursor.get_y_actual() - 1;
+                self.cursor.set_y_display(1);
+            }
+        }
+    }
+    pub fn update_x_offset(&mut self){
+        if self.get_cursor().get_x_display() == terminal_size().unwrap().0 {
+            self.offset.0 += 1; //self.get_cursor().get_x_actual() - terminal_size().unwrap().0 as usize;
+        } else if self.get_cursor().get_x_display() == 1{
+            if self.offset.0 != 0{
+                self.offset.0 -= 1;
+            }
+        }
+    }
+
+    pub fn update_y_offset(&mut self){
+        if self.get_cursor().get_y_display() == terminal_size().unwrap().1 {
+            self.offset.1 += 1; //self.get_cursor().get_x_actual() - terminal_size().unwrap().0 as usize;
+        } else if self.get_cursor().get_y_display() == 1{
+            if self.offset.1 != 0{
+                self.offset.1 -= 1;
+            }
+        }
     }
 }
 
-fn find_cursor_position(text: &str, index: usize) -> Option<CursorPos> {
-    let mut x = 1;
-    let mut y = 1;
-    let mut last_newline_index = 0;
+// fn find_cursor_position(text: &str, index: usize) -> Option<CursorPos> {
+//     let mut x = 1;
+//     let mut y = 1;
+//     let mut last_newline_index = 0;
 
-    for (i, c) in text.chars().enumerate() {
-        if i == index {
-            x = i - last_newline_index;
-            return Some(CursorPos::new(x, y));
-        }
-        if c == '\n' {
-            y += 1;
-            last_newline_index = i + 1;
-        }
-    }
+//     for (i, c) in text.chars().enumerate() {
+//         if i == index {
+//             x = i - last_newline_index;
+//             return Some(CursorPos::new(x, y));
+//         }
+//         if c == '\n' {
+//             y += 1;
+//             last_newline_index = i + 1;
+//         }
+//     }
 
-    if index == text.len() {
-        x = text.len() - last_newline_index;
-        return Some(CursorPos::new(x, y));
-    }
+//     if index == text.len() {
+//         x = text.len() - last_newline_index;
+//         return Some(CursorPos::new(x, y));
+//     }
 
-    None
-}
+//     None
+// }
