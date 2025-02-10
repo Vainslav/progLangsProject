@@ -13,10 +13,10 @@ fn main() -> Result<(), String>{
         Err("File not specified".to_string())?;
     }
 
-    let document_manager = Document::new(args[1].clone());
+    let mut document_manager = Document::new(args[1].clone());
 
-    let mut modes = ModeManager::new(document_manager);
-    modes.run();
+    let mut modes = ModeManager::new();
+    modes.run(&mut document_manager);
     Ok(())
 }
  

@@ -1,6 +1,4 @@
-use termion::terminal_size;
-
-use crate::util::{reversable_function::ReversableFunction, string_util::remove_prefix_and_update_lines};
+use crate::util::reversable_function::ReversableFunction;
 
 use super::{cursor_manager::CursorPos, text_manager::TextManager};
 use std::process::exit;
@@ -48,8 +46,8 @@ impl Document {
         string
     }
 
-    pub fn get_text(&self) -> String{
-        self.text.get_text()
+    pub fn get_text_with_offset(&self) -> String{
+        self.text.get_text_with_offset()
     }
 
     pub fn get_all_text(&self) -> String{

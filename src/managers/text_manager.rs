@@ -37,7 +37,7 @@ impl TextManager{
         })
     }
 
-    pub fn get_text(&self) -> String{
+    pub fn get_text_with_offset(&self) -> String{
         remove_prefix_and_update_lines(self.text.get_text(), self.offset.0, terminal_size().unwrap().0 as usize, self.offset.1, (terminal_size().unwrap().1 - 1) as usize)
     }
 
