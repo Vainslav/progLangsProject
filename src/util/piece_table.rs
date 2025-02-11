@@ -4,6 +4,16 @@ enum Buffer{
     Add
 }
 
+struct Atributes{
+    is_italic: bool,
+    is_bold: bool,
+}
+
+struct char_with_attributes{
+    char: char,
+    atributes: Atributes
+}
+
 #[derive(Clone, Copy, PartialEq)]
 struct Piece{
     buffer: Buffer,

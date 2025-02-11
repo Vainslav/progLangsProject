@@ -121,9 +121,4 @@ impl Document {
         self.text.dec_y();
         self.text.update_offset(&old_cursor);
     }
-
-    
-    pub fn get_offset(&self) -> (usize, usize){
-        self.text.get_offset()
-    }
 }

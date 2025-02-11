@@ -205,7 +205,6 @@ impl TextManager{
         let terminal_size = terminal_size().unwrap();
 
         if old_x < self.cursor.get_x_actual(){
-            print!("[{old_x},{},{}]", self.cursor.get_x_actual(), self.cursor.get_x_display());
             if self.cursor.get_x_actual() - old_x > (terminal_size.0 - self.cursor.get_x_display()) as usize && self.cursor.get_x_actual() > terminal_size.0 as usize{
                 self.offset.0 = self.cursor.get_x_actual() - terminal_size.0 as usize;
                 self.cursor.set_x_display(terminal_size.0);  
@@ -218,7 +217,6 @@ impl TextManager{
         }
 
         if old_y < self.cursor.get_y_actual(){
-            print!("[{old_y},{},{}]", self.cursor.get_y_actual(), self.cursor.get_y_display());
             if self.cursor.get_y_actual() - old_y > (terminal_size.1 - 1 - self.cursor.get_y_display()) as usize{
                 self.offset.1 = self.cursor.get_y_actual() + 1 - terminal_size.1 as usize;
                 self.cursor.set_y_display(terminal_size.1);

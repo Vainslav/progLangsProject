@@ -1,8 +1,13 @@
+use std::fmt::write;
+use std::io::stdin;
 use std::thread;
 use std::time::Duration;
 
+use termion::color;
+use termion::color::Color;
 use termion::event::Event;
 use termion::event::Key;
+use termion::event::MouseButton;
 use termion::event::MouseEvent;
 use termion::input::MouseTerminal;
 use termion::input::TermRead;
@@ -17,10 +22,22 @@ use crate::util::reversable_function::ReversableFunction;
 use crate::util::reversable_function::Funcs;
 use crate::managers::cursor_manager::CursorPos;
 
-fn update(stdout: &mut MouseTerminal<RawTerminal<Stdout>>, document: &mut Document){
+struct ColoringRule {
+    pub start: usize,
+    pub end: usize,
+}
+
+//termion::color::Bg(color::LightBlue)
+fn update(stdout: &mut MouseTerminal<RawTerminal<Stdout>>, document: &mut Document, coloring: (usize, usize)){
     let terminal_size = terminal_size().unwrap();
     write!(stdout, "{}{}", termion::clear::All, termion::cursor::Goto(1,1)).unwrap();
-    write!(stdout, "{}", document.get_text_with_offset().replace("\n", "\n\r")).unwrap();
+
+    if coloring == (0,0){
+        write!(stdout, "{}", document.get_text_with_offset().replace("\n", "\n\r")).unwrap();
+    }else{
+        print_text(stdout, document.get_text_with_offset(), coloring);
+    }
+    
     if terminal_size.1 >= 30 && terminal_size.0 >= 100{
         write!(stdout, "{}", termion::cursor::Goto(1, terminal_size.1)).unwrap();
         write!(stdout, "--INSERT--").unwrap();
@@ -32,24 +49,30 @@ fn update(stdout: &mut MouseTerminal<RawTerminal<Stdout>>, document: &mut Docume
 }
 
 pub fn run(stdout: &mut MouseTerminal<RawTerminal<Stdout>>, document: &mut Document){
-    update(stdout, document);
-    let mut events = termion::async_stdin().events();
+    update(stdout, document, (0,0));
+    let mut events = stdin().events();
     let mut last_terminal_size = terminal_size().unwrap();
+
+    let mut mouse_start: Option<(u16, u16)> = None;
+    let mut mouse_current: Option<(u16, u16)> = None;
+    let mut is_mouse_held: bool = false;
+
     loop{
-        if last_terminal_size != terminal_size().unwrap() {
-            last_terminal_size = terminal_size().unwrap();
-            
-            update(stdout, document);
+        if !is_mouse_held{
+            mouse_current = None;
+            mouse_start = None;
         }
+
         let event = events.next()
         .map(|result| result.unwrap_or(Event::Unsupported(Vec::new())))
         .unwrap_or(Event::Unsupported(Vec::new()));
+
         match event {
             Event::Key(Key::Ctrl('q')) => {
                 document.save();
                 break;
             }
-            Event::Key(Key::Ctrl('c')) => {
+            Event::Key(Key::Ctrl('p')) => {
                 break;
             }
             Event::Key(Key::Ctrl('z')) => {
@@ -81,16 +104,30 @@ pub fn run(stdout: &mut MouseTerminal<RawTerminal<Stdout>>, document: &mut Docum
             }
             Event::Mouse(me) => {
                 match me {
-                    MouseEvent::Hold(x ,y) => {
-                        print!("{},{}",x,y);
+                    MouseEvent::Press(MouseButton::Left, x, y) => {
+                        mouse_start = Some((x,y));
+                        is_mouse_held = true;
+                    }
+                    MouseEvent::Hold(x, y) => {
+                        mouse_current = Some((x,y));
+                    }
+                    MouseEvent::Release(x, y) => {
+                        if is_mouse_held{
+                            is_mouse_held = false
+                        }
                     }
                     _ => {}
                 }
             }
             _ => {}
         }
-        update(stdout, document);
-        thread::sleep(Duration::from_millis(1));
+        if mouse_start.is_some() && mouse_current.is_some(){
+            let first_index = get_text_index(document.get_text_with_offset(), &CursorPos::new(mouse_start.unwrap().0, mouse_start.unwrap().1));
+            let second_index = get_text_index(document.get_text_with_offset(), &CursorPos::new(mouse_current.unwrap().0, mouse_current.unwrap().1));
+            update(stdout, document, (first_index, second_index));
+        }else{
+            update(stdout, document, (0,0));
+        }
     }
 }
 
@@ -177,4 +214,24 @@ fn handle_char(document: &mut Document, ch: char){
             document.move_cursor_right();
         }
     }
+}
+
+fn print_text(stdout: &mut MouseTerminal<RawTerminal<Stdout>>, text: String, coloring: (usize, usize)){
+    let mut until_first: Vec<char> = Vec::new();
+    let mut change_color: Vec<char> = Vec::new();
+    let mut after_change_color: Vec<char> = Vec::new();
+    let _ =text.chars()
+            .enumerate()
+            .for_each(|(i, c)| -> () {
+                if i < std::cmp::min(coloring.0, coloring.1){
+                    until_first.push(c);
+                }else if i > std::cmp::max(coloring.0, coloring.1){
+                    after_change_color.push(c);
+                }else{
+                    change_color.push(c);
+                }
+            });
+    print!("{}",until_first.iter().collect::<String>().replace("\n", "\n\r"));
+    print!("{}{}{}",termion::color::Bg(termion::color::LightBlue), change_color.iter().collect::<String>().replace("\n", "\n\r"), termion::color::Bg(termion::color::Reset));
+    print!("{}",after_change_color.iter().collect::<String>().replace("\n", "\n\r"));
 }
