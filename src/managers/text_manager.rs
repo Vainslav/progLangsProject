@@ -2,6 +2,7 @@ use std::fs::read_to_string;
 use std::io::Error;
 use std::cmp::min;
 
+use termion::cursor;
 use termion::terminal_size;
 
 use crate::util::piece_table::PieceTable;
@@ -231,6 +232,14 @@ impl TextManager{
 
     pub fn get_offset(&self) -> (usize, usize){
         self.offset
+    }
+
+    pub unsafe fn set_cursor(&mut self, new_cursor: CursorPos){
+        self.cursor = new_cursor;
+        self.cursor.set_y_actual(std::cmp::min(self.get_num_lines(), self.cursor.get_y_actual()));
+        self.cursor.set_y_display(self.cursor.get_y_actual() as u16);
+        self.cursor.set_x_actual(std::cmp::min(self.cursor.get_x_actual(), self.get_line_length(self.cursor.get_y_actual() - 1) + 1)); 
+        self.cursor.set_x_display(self.cursor.get_x_actual() as u16);
     }
 }
 

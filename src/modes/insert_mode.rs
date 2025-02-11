@@ -53,8 +53,8 @@ pub fn run(stdout: &mut MouseTerminal<RawTerminal<Stdout>>, document: &mut Docum
     let mut events = stdin().events();
     let mut last_terminal_size = terminal_size().unwrap();
 
-    let mut mouse_start: Option<(u16, u16)> = None;
-    let mut mouse_current: Option<(u16, u16)> = None;
+    let mut mouse_start: Option<usize> = None;
+    let mut mouse_current: Option<usize> = None;
     let mut is_mouse_held: bool = false;
 
     loop{
@@ -105,11 +105,17 @@ pub fn run(stdout: &mut MouseTerminal<RawTerminal<Stdout>>, document: &mut Docum
             Event::Mouse(me) => {
                 match me {
                     MouseEvent::Press(MouseButton::Left, x, y) => {
-                        mouse_start = Some((x,y));
+                        mouse_start = Some(get_text_index(document.get_text_with_offset(), &CursorPos::new(x, y)));
                         is_mouse_held = true;
+                        unsafe{
+                            document.set_cursor(CursorPos::new(x, y));
+                        }
                     }
                     MouseEvent::Hold(x, y) => {
-                        mouse_current = Some((x,y));
+                        mouse_current = Some(get_text_index(document.get_text_with_offset(), &CursorPos::new(x, y)));
+                        unsafe{
+                            document.set_cursor(CursorPos::new(x, y))
+                        }
                     }
                     MouseEvent::Release(x, y) => {
                         if is_mouse_held{
@@ -122,8 +128,8 @@ pub fn run(stdout: &mut MouseTerminal<RawTerminal<Stdout>>, document: &mut Docum
             _ => {}
         }
         if mouse_start.is_some() && mouse_current.is_some(){
-            let first_index = get_text_index(document.get_text_with_offset(), &CursorPos::new(mouse_start.unwrap().0, mouse_start.unwrap().1));
-            let second_index = get_text_index(document.get_text_with_offset(), &CursorPos::new(mouse_current.unwrap().0, mouse_current.unwrap().1));
+            let first_index = mouse_start.unwrap();
+            let second_index = mouse_current.unwrap();
             update(stdout, document, (first_index, second_index));
         }else{
             update(stdout, document, (0,0));
@@ -225,13 +231,13 @@ fn print_text(stdout: &mut MouseTerminal<RawTerminal<Stdout>>, text: String, col
             .for_each(|(i, c)| -> () {
                 if i < std::cmp::min(coloring.0, coloring.1){
                     until_first.push(c);
-                }else if i > std::cmp::max(coloring.0, coloring.1){
+                }else if i >= std::cmp::max(coloring.0, coloring.1){
                     after_change_color.push(c);
                 }else{
                     change_color.push(c);
                 }
             });
-    print!("{}",until_first.iter().collect::<String>().replace("\n", "\n\r"));
-    print!("{}{}{}",termion::color::Bg(termion::color::LightBlue), change_color.iter().collect::<String>().replace("\n", "\n\r"), termion::color::Bg(termion::color::Reset));
-    print!("{}",after_change_color.iter().collect::<String>().replace("\n", "\n\r"));
+    write!(stdout,"{}",until_first.iter().collect::<String>().replace("\n", "\n\r")).unwrap();
+    write!(stdout,"{}{}{}",termion::color::Bg(termion::color::LightBlue), change_color.iter().collect::<String>().replace("\n", "\n\r"), termion::color::Bg(termion::color::Reset)).unwrap();
+    write!(stdout,"{}",after_change_color.iter().collect::<String>().replace("\n", "\n\r")).unwrap();
 }

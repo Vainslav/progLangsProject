@@ -1,3 +1,5 @@
+use termion::cursor;
+
 #[derive(Clone)]
 pub struct CursorPos{
     x_display: u16,

@@ -121,4 +121,8 @@ impl Document {
         self.text.dec_y();
         self.text.update_offset(&old_cursor);
     }
+
+    pub unsafe fn set_cursor(&mut self, cursor: CursorPos){
+        self.text.set_cursor(cursor);
+    }
 }
