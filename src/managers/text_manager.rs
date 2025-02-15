@@ -2,7 +2,6 @@ use std::fs::read_to_string;
 use std::io::Error;
 use std::cmp::min;
 
-use termion::cursor;
 use termion::terminal_size;
 
 use crate::util::piece_table::PieceTable;
@@ -87,28 +86,17 @@ impl TextManager{
                     self.text.remove(*reversable_function.get_index(), reversable_function.get_string().chars().count());
                 }
                 Funcs::Remove => {
-                    self.text.insert({ 
-                        if reversable_function.get_index() <= &reversable_function.get_string().chars().count(){
-                            0
-                        }else{
-                            reversable_function.get_index() - reversable_function.get_string().chars().count()
-                        }
-                    }, reversable_function.get_string().clone());
-                    self.lines_manager.recalculate_line_lenghts(self.text.get_text());
+                    self.text.insert(*reversable_function.get_index(), reversable_function.get_string().to_owned());
                 }
                 Funcs::Delete => {
-                    self.text.insert(*reversable_function.get_index(), reversable_function.get_string().clone());
-                    self.lines_manager.recalculate_line_lenghts(self.text.get_text());
+                    self.text.insert(*reversable_function.get_index(), reversable_function.get_string().to_owned());
                 }
             }
-            // self.offset = reversable_function.get_offset().to_owned();
             self.cursor.set_x_actual(reversable_function.get_cursor().get_x_actual());
             self.cursor.set_y_actual(reversable_function.get_cursor().get_y_actual());
             self.cursor.set_x_display(reversable_function.get_cursor().get_x_display());
             self.cursor.set_y_display(reversable_function.get_cursor().get_y_display());
         }
-        
-        self.lines_manager.recalculate_line_lenghts(self.text.get_text());
     }
 
     pub fn redo(&mut self){
@@ -120,26 +108,26 @@ impl TextManager{
                     self.text.insert(*reversable_function.get_index(), reversable_function.get_string().clone());
                 }
                 Funcs::Remove => {
-                    self.text.remove({ 
-                        if reversable_function.get_index() <= &reversable_function.get_string().chars().count(){
-                            0
-                        }else{
-                            reversable_function.get_index() - reversable_function.get_string().chars().count()
-                        }
-                    }, reversable_function.get_string().chars().count());
+                    self.text.remove(*reversable_function.get_index(), reversable_function.get_string().chars().count());
                 }
                 Funcs::Delete => {
                     self.text.remove(*reversable_function.get_index(), reversable_function.get_string().chars().count());
                 }
             }
-            // self.offset = reversable_function.get_offset().to_owned();
             self.cursor.set_x_actual(reversable_function.get_cursor().get_x_actual());
             self.cursor.set_y_actual(reversable_function.get_cursor().get_y_actual());
             self.cursor.set_x_display(reversable_function.get_cursor().get_x_display());
             self.cursor.set_y_display(reversable_function.get_cursor().get_y_display());
+            self.lines_manager.recalculate_line_lenghts(self.text.get_text());
+            match reversable_function.get_func() {
+                Funcs::Remove => {
+                    for i in 0..reversable_function.get_string().len(){
+                        self.cursor.dec_x();
+                    }
+                }
+                _ => {}
+            }
         }
-
-        self.lines_manager.recalculate_line_lenghts(self.text.get_text());
     }
 
     pub fn push_to_undo_redo(&mut self, func: ReversableFunction){
@@ -234,35 +222,7 @@ impl TextManager{
         self.offset
     }
 
-    pub unsafe fn set_cursor(&mut self, new_cursor: CursorPos){
-        self.cursor = new_cursor;
-        self.cursor.set_y_actual(std::cmp::min(self.get_num_lines(), self.cursor.get_y_actual()));
-        self.cursor.set_y_display(self.cursor.get_y_actual() as u16);
-        self.cursor.set_x_actual(std::cmp::min(self.cursor.get_x_actual(), self.get_line_length(self.cursor.get_y_actual() - 1) + 1)); 
-        self.cursor.set_x_display(self.cursor.get_x_actual() as u16);
+    pub fn set_cursor(&mut self, cursor: CursorPos){
+        self.cursor = cursor
     }
 }
-
-// fn find_cursor_position(text: &str, index: usize) -> Option<CursorPos> {
-//     let mut x = 1;
-//     let mut y = 1;
-//     let mut last_newline_index = 0;
-
-//     for (i, c) in text.chars().enumerate() {
-//         if i == index {
-//             x = i - last_newline_index;
-//             return Some(CursorPos::new(x, y));
-//         }
-//         if c == '\n' {
-//             y += 1;
-//             last_newline_index = i + 1;
-//         }
-//     }
-
-//     if index == text.len() {
-//         x = text.len() - last_newline_index;
-//         return Some(CursorPos::new(x, y));
-//     }
-
-//     None
-// }

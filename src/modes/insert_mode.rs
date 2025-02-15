@@ -1,10 +1,9 @@
-use std::fmt::write;
 use std::io::stdin;
+use std::cmp::min;
+use std::cmp::max;
 use std::thread;
 use std::time::Duration;
 
-use termion::color;
-use termion::color::Color;
 use termion::event::Event;
 use termion::event::Key;
 use termion::event::MouseButton;
@@ -22,12 +21,6 @@ use crate::util::reversable_function::ReversableFunction;
 use crate::util::reversable_function::Funcs;
 use crate::managers::cursor_manager::CursorPos;
 
-struct ColoringRule {
-    pub start: usize,
-    pub end: usize,
-}
-
-//termion::color::Bg(color::LightBlue)
 fn update(stdout: &mut MouseTerminal<RawTerminal<Stdout>>, document: &mut Document, coloring: (usize, usize)){
     let terminal_size = terminal_size().unwrap();
     write!(stdout, "{}{}", termion::clear::All, termion::cursor::Goto(1,1)).unwrap();
@@ -43,6 +36,8 @@ fn update(stdout: &mut MouseTerminal<RawTerminal<Stdout>>, document: &mut Docume
         write!(stdout, "--INSERT--").unwrap();
         write!(stdout, "{}", termion::cursor::Goto(terminal_size.0 - 30, terminal_size.1)).unwrap();
         write!(stdout, "{} , {}", document.get_cursor().get_x_actual(), document.get_cursor().get_y_actual()).unwrap();
+        write!(stdout, "[{},{}]", document.get_offset().0, document.get_offset().1).unwrap();
+        write!(stdout, "[{},{}]", coloring.0, coloring.1).unwrap();
     }
     write!(stdout, "{}", termion::cursor::Goto(document.get_cursor().get_x_display(), document.get_cursor().get_y_display())).unwrap();
     stdout.flush().unwrap();
@@ -51,18 +46,12 @@ fn update(stdout: &mut MouseTerminal<RawTerminal<Stdout>>, document: &mut Docume
 pub fn run(stdout: &mut MouseTerminal<RawTerminal<Stdout>>, document: &mut Document){
     update(stdout, document, (0,0));
     let mut events = stdin().events();
-    let mut last_terminal_size = terminal_size().unwrap();
+    let mut _last_terminal_size = terminal_size().unwrap();
 
-    let mut mouse_start: Option<usize> = None;
-    let mut mouse_current: Option<usize> = None;
-    let mut is_mouse_held: bool = false;
+    let mut highlight_start: Option<CursorPos> = None;
+    let mut highlight_current: Option<CursorPos> = None;
 
     loop{
-        if !is_mouse_held{
-            mouse_current = None;
-            mouse_start = None;
-        }
-
         let event = events.next()
         .map(|result| result.unwrap_or(Event::Unsupported(Vec::new())))
         .unwrap_or(Event::Unsupported(Vec::new()));
@@ -94,32 +83,25 @@ pub fn run(stdout: &mut MouseTerminal<RawTerminal<Stdout>>, document: &mut Docum
                 document.move_cursor_down();
             }
             Event::Key(Key::Backspace) => {
-                handle_backspace(document);
+                handle_backspace(document, highlight_start,  highlight_current);
             }
             Event::Key(Key::Delete) => {
-                handle_delete(document);
+                handle_delete(document, highlight_start, highlight_current);
             }
             Event::Key(Key::Char(ch)) => {
-                handle_char(document, ch);
+                handle_char(document, ch, highlight_start, highlight_current);
             }
             Event::Mouse(me) => {
                 match me {
                     MouseEvent::Press(MouseButton::Left, x, y) => {
-                        mouse_start = Some(get_text_index(document.get_text_with_offset(), &CursorPos::new(x, y)));
-                        is_mouse_held = true;
-                        unsafe{
-                            document.set_cursor(CursorPos::new(x, y));
-                        }
+                        highlight_current = None;
+                        document.set_cursor_from_mouse_pos((x, y));
+                        highlight_start = Some(document.get_cursor().to_owned());
                     }
                     MouseEvent::Hold(x, y) => {
-                        mouse_current = Some(get_text_index(document.get_text_with_offset(), &CursorPos::new(x, y)));
-                        unsafe{
-                            document.set_cursor(CursorPos::new(x, y))
-                        }
-                    }
-                    MouseEvent::Release(x, y) => {
-                        if is_mouse_held{
-                            is_mouse_held = false
+                        document.set_cursor_from_mouse_pos((x, y));
+                        if highlight_start.as_ref().unwrap() != document.get_cursor(){
+                            highlight_current = Some(document.get_cursor().to_owned());
                         }
                     }
                     _ => {}
@@ -127,14 +109,34 @@ pub fn run(stdout: &mut MouseTerminal<RawTerminal<Stdout>>, document: &mut Docum
             }
             _ => {}
         }
-        if mouse_start.is_some() && mouse_current.is_some(){
-            let first_index = mouse_start.unwrap();
-            let second_index = mouse_current.unwrap();
+        
+        match event{
+            Event::Mouse(_me) => {}
+            _ => {
+                highlight_current = None;
+                highlight_start = None;
+            }            
+        }
+
+        if highlight_start.is_some() && highlight_current.is_some(){
+            let first_index = get_text_index_display(document.get_text_with_offset(), highlight_start.as_ref().unwrap());
+            let second_index = get_text_index_display(document.get_text_with_offset(), highlight_current.as_ref().unwrap());
             update(stdout, document, (first_index, second_index));
         }else{
             update(stdout, document, (0,0));
         }
     }
+}
+
+fn get_text_index_display(text: String, cursor: &CursorPos) -> usize{
+    let mut idx: usize = 0;
+    for (i, line) in text.lines().enumerate(){
+        if i == cursor.get_y_display() as usize - 1{
+            break
+        } 
+        idx += line.chars().count() + 1;
+    }
+    idx + cursor.get_x_display() as usize - 1
 }
 
 fn get_text_index(text: String, cursor: &CursorPos) -> usize{
@@ -148,7 +150,7 @@ fn get_text_index(text: String, cursor: &CursorPos) -> usize{
     idx + cursor.get_x_actual() - 1
 }
 
-fn get_cursor_from_index(index: usize, line_lengths: Vec<usize>) -> CursorPos{
+fn _get_cursor_from_index(index: usize, line_lengths: Vec<usize>) -> CursorPos{
     let mut index = index;
     let mut x = 1;
     let mut y = 1;
@@ -164,62 +166,124 @@ fn get_cursor_from_index(index: usize, line_lengths: Vec<usize>) -> CursorPos{
     CursorPos::new(x as u16, y)
 }
 
-fn handle_backspace(document: &mut Document){
-    let idx = get_text_index(document.get_all_text(), document.get_cursor());
+fn handle_backspace(document: &mut Document, highlight_start: Option<CursorPos>, highlight_current: Option<CursorPos>){
+    if highlight_start.is_some() && highlight_current.is_some(){
+        if remove_chunk(document, highlight_start, highlight_current){
+            return
+        }
+    }
+
     if document.get_cursor().get_x_actual() == 1 && document.get_cursor().get_y_actual() == 1{
         return
     }
+
     document.move_cursor_left();
 
-    let str = document.remove(get_text_index(document.get_all_text(), document.get_cursor()), 1);
+    let idx = get_text_index(document.get_all_text(), document.get_cursor());
 
-    let mut new_cursor = document.get_cursor().clone();
-    new_cursor.inc_x();
+    let str = document.remove(idx, 1);
+    
+    let mut old_cursor = document.get_cursor().clone();
+
+    old_cursor.inc_x();
+
+    document.recalculate_line_lenghts();
+
     document.push_to_undo_redo(ReversableFunction::new(
         Funcs::Remove, 
         idx, 
         str,
-        new_cursor
+        old_cursor
     ));
-    document.recalculate_line_lenghts();
 }
 
-fn handle_delete(document: &mut Document){
+fn handle_delete(document: &mut Document, highlight_start: Option<CursorPos>, highlight_current: Option<CursorPos>){
+    if highlight_start.is_some() && highlight_current.is_some(){
+        if remove_chunk(document, highlight_start, highlight_current){
+            return
+        }
+    }
+
     let idx = get_text_index(document.get_all_text(), document.get_cursor());
+
     if idx >= document.get_length(){
         return
     }
+
     let str = document.remove(idx, 1);
     document.push_to_undo_redo(ReversableFunction::new(
         Funcs::Delete,
         idx,
         str,
-        document.get_cursor().clone()
+        document.get_cursor().to_owned()
     ));
     document.recalculate_line_lenghts();
 }
 
-fn handle_char(document: &mut Document, ch: char){
+fn handle_char(document: &mut Document, ch: char, highlight_start: Option<CursorPos>, highlight_current: Option<CursorPos>){
+    if highlight_current.is_some() && highlight_start.is_some(){
+        remove_chunk(document, highlight_start, highlight_current);
+    }
     let idx = get_text_index(document.get_all_text(), document.get_cursor());
     if idx > document.get_length(){}
     else{
         document.push_to_undo_redo(ReversableFunction::new(
             Funcs::Insert, 
-            get_text_index(document.get_all_text(), document.get_cursor()), 
+            idx, 
             ch.to_string(),
-            document.get_cursor().clone()
+            document.get_cursor().to_owned()
         ));
-        document.insert(get_text_index(document.get_all_text(), document.get_cursor()), ch.to_string());
+        document.insert(idx, ch.to_string());
         if ch == '\n'{
             document.recalculate_line_lenghts();
             document.get_cursor_mut().set_max_newline();
             document.move_cursor_down();
         }
         else{
-            // increment_lenght(cursor_pos.y - 1);
             document.move_cursor_right();
         }
     }
+}
+
+fn remove_chunk(document: &mut Document, chunk_start: Option<CursorPos>, chunk_end: Option<CursorPos>) -> bool{
+    let start_index = get_text_index(document.get_all_text(), chunk_start.as_ref().unwrap());
+    let end_index = get_text_index(document.get_all_text(), chunk_end.as_ref().unwrap());
+
+    if start_index == end_index{
+        return false
+    }
+
+    let idx = min(start_index, end_index);
+
+    let str = document.remove(idx, max(start_index, end_index) - min(start_index, end_index));
+
+    let old_cursor: CursorPos = {
+        if start_index < end_index{
+            chunk_start.unwrap()
+        }else{
+            chunk_end.unwrap()
+        }
+    };
+
+    if start_index > end_index{
+
+    }else{
+        for i in 0..str.len(){
+            document.move_cursor_left();
+        }
+    }
+
+    document.recalculate_line_lenghts();
+
+    document.set_cursor(old_cursor.to_owned());
+
+    document.push_to_undo_redo(ReversableFunction::new(
+        Funcs::Remove,
+        idx,
+        str,
+        old_cursor
+    ));
+    return true
 }
 
 fn print_text(stdout: &mut MouseTerminal<RawTerminal<Stdout>>, text: String, coloring: (usize, usize)){

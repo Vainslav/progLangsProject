@@ -1,6 +1,6 @@
 use termion::cursor;
 
-#[derive(Clone)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct CursorPos{
     x_display: u16,
     x_actual: usize,

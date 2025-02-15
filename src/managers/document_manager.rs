@@ -76,12 +76,14 @@ impl Document {
         let old_cursor = self.get_cursor().to_owned();
         self.text.undo();
         self.text.update_offset(&old_cursor);
+        self.recalculate_line_lenghts();
     }
 
     pub fn redo(&mut self){
         let old_cursor = self.get_cursor().to_owned();
         self.text.redo();
         self.text.update_offset(&old_cursor);
+        self.recalculate_line_lenghts();
     }
 
     pub fn push_to_undo_redo(&mut self, func: ReversableFunction){
@@ -122,7 +124,20 @@ impl Document {
         self.text.update_offset(&old_cursor);
     }
 
-    pub unsafe fn set_cursor(&mut self, cursor: CursorPos){
+    pub fn set_cursor_from_mouse_pos(&mut self, mouse: (u16, u16)){
+        let offset = self.text.get_offset();
+        let cursor = self.text.get_cursor_mut();
+        cursor.set_x_display(mouse.0);
+        cursor.set_y_display(mouse.1);
+        cursor.set_x_actual(mouse.0 as usize + offset.0);
+        cursor.set_y_actual(mouse.1 as usize + offset.1);
+    }
+
+    pub fn get_offset(&self) -> (usize, usize){
+        self.text.get_offset()
+    }
+
+    pub fn set_cursor(&mut self, cursor: CursorPos){
         self.text.set_cursor(cursor);
     }
 }
