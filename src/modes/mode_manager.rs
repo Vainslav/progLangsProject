@@ -19,19 +19,19 @@ enum Modes{
 static mut CURRENT_MODE: Modes = Modes::Insert;
 
 pub struct ModeManager{
-    modes: HashMap<Modes, fn(stdout: &mut MouseTerminal<RawTerminal<Stdout>>, document: &mut Document)>,
-    screen: MouseTerminal<RawTerminal<Stdout>>,
+    modes: HashMap<Modes, fn(stdout: &mut AlternateScreen<MouseTerminal<RawTerminal<Stdout>>>, document: &mut Document)>,
+    screen: AlternateScreen<MouseTerminal<RawTerminal<Stdout>>>,
 }
 
 impl ModeManager{
     pub fn new() -> Self{
-        let mut hash_map: HashMap<Modes, fn(stdout: &mut MouseTerminal<RawTerminal<Stdout>>, document: &mut Document)> = HashMap::new();
+        let mut hash_map: HashMap<Modes, fn(stdout: &mut AlternateScreen<MouseTerminal<RawTerminal<Stdout>>>, document: &mut Document)> = HashMap::new();
         hash_map.insert(Modes::Insert, insert_mode::run);
         hash_map.insert(Modes::Normal, normal_mode::run);
         // hash_map.insert(Modes::Normal, Box::new(NormalMode::init(document)));
         ModeManager{
             modes: hash_map,
-            screen: MouseTerminal::from(stdout().into_raw_mode().unwrap())
+            screen: MouseTerminal::from(stdout().into_raw_mode().unwrap()).into_alternate_screen().unwrap()
         }
     }
 

@@ -16,6 +16,7 @@ use termion::input::MouseTerminal;
 use termion::input::TermRead;
 use termion::raw::RawTerminal;
 use termion::terminal_size;
+use termion::screen::AlternateScreen;
 
 use clipboard::ClipboardProvider;
 use clipboard::ClipboardContext;
@@ -28,7 +29,7 @@ use crate::util::reversable_function::ReversableFunction;
 use crate::util::reversable_function::Funcs;
 use crate::managers::cursor_manager::CursorPos;
 
-fn update(stdout: &mut MouseTerminal<RawTerminal<Stdout>>, document: &mut Document, coloring: (usize, usize)){
+fn update(stdout: &mut AlternateScreen<MouseTerminal<RawTerminal<Stdout>>>, document: &mut Document, coloring: (usize, usize)){
     let terminal_size = terminal_size().unwrap();
     write!(stdout, "{}{}", termion::clear::All, termion::cursor::Goto(1,1)).unwrap();
 
@@ -50,7 +51,7 @@ fn update(stdout: &mut MouseTerminal<RawTerminal<Stdout>>, document: &mut Docume
     stdout.flush().unwrap();
 }
 
-pub fn run(stdout: &mut MouseTerminal<RawTerminal<Stdout>>, document: &mut Document){
+pub fn run(stdout: &mut AlternateScreen<MouseTerminal<RawTerminal<Stdout>>>, document: &mut Document){
     update(stdout, document, (0,0));
     let mut _last_terminal_size = terminal_size().unwrap();
 
