@@ -1,9 +1,13 @@
 use std::io::stdin;
 use std::cmp::min;
 use std::cmp::max;
+
+
 use std::thread;
+use std::sync::mpsc;
 use std::time::Duration;
 
+use termion::event;
 use termion::event::Event;
 use termion::event::Key;
 use termion::event::MouseButton;
@@ -45,85 +49,148 @@ fn update(stdout: &mut MouseTerminal<RawTerminal<Stdout>>, document: &mut Docume
 
 pub fn run(stdout: &mut MouseTerminal<RawTerminal<Stdout>>, document: &mut Document){
     update(stdout, document, (0,0));
-    let mut events = stdin().events();
     let mut _last_terminal_size = terminal_size().unwrap();
 
     let mut highlight_start: Option<CursorPos> = None;
     let mut highlight_current: Option<CursorPos> = None;
 
-    loop{
-        let event = events.next()
-        .map(|result| result.unwrap_or(Event::Unsupported(Vec::new())))
-        .unwrap_or(Event::Unsupported(Vec::new()));
+    let mut window_size = terminal_size().unwrap();
+    
+    let (tx, rx) = mpsc::channel::<Event>();
 
-        match event {
-            Event::Key(Key::Ctrl('q')) => {
-                document.save();
-                break;
+    thread::spawn(move || {
+        let mut events = stdin().events();
+
+        loop{
+            let event = events.next()
+            .map(|result| result.unwrap_or(Event::Unsupported(Vec::new())))
+            .unwrap_or(Event::Unsupported(Vec::new()));
+            tx.send(event).unwrap()
+        }
+    });
+
+    loop{
+        if window_size != terminal_size().unwrap(){
+            window_size = terminal_size().unwrap();
+            if highlight_start.is_some() && highlight_current.is_some(){
+                let first_index = get_text_index_display(document.get_text_with_offset(), highlight_start.as_ref().unwrap());
+                let second_index = get_text_index_display(document.get_text_with_offset(), highlight_current.as_ref().unwrap());
+                update(stdout, document, (first_index, second_index));
+            }else{
+                update(stdout, document, (0,0));
             }
-            Event::Key(Key::Ctrl('p')) => {
-                break;
-            }
-            Event::Key(Key::Ctrl('z')) => {
-                document.undo();
-            }
-            Event::Key(Key::Ctrl('y')) => {
-                document.redo();
-            }
-            Event::Key(Key::Left) => {
-                document.move_cursor_left();
-            }
-            Event::Key(Key::Right) => {
-                document.move_cursor_right();
-            }
-            Event::Key(Key::Up) => {
-                document.move_cursor_up();
-            }
-            Event::Key(Key::Down) => {
-                document.move_cursor_down();
-            }
-            Event::Key(Key::Backspace) => {
-                handle_backspace(document, highlight_start,  highlight_current);
-            }
-            Event::Key(Key::Delete) => {
-                handle_delete(document, highlight_start, highlight_current);
-            }
-            Event::Key(Key::Char(ch)) => {
-                handle_char(document, ch, highlight_start, highlight_current);
-            }
-            Event::Mouse(me) => {
-                match me {
-                    MouseEvent::Press(MouseButton::Left, x, y) => {
-                        highlight_current = None;
-                        document.set_cursor_from_mouse_pos((x, y));
-                        highlight_start = Some(document.get_cursor().to_owned());
+        }
+
+        match rx.try_recv(){
+            Ok(event) => {
+                match event {
+                    Event::Key(Key::Ctrl('q')) => {
+                        document.save();
+                        write!(stdout, "{}", termion::cursor::Show).unwrap();
+                        break;
                     }
-                    MouseEvent::Hold(x, y) => {
-                        document.set_cursor_from_mouse_pos((x, y));
-                        if highlight_start.as_ref().unwrap() != document.get_cursor(){
-                            highlight_current = Some(document.get_cursor().to_owned());
+                    Event::Key(Key::Ctrl('p')) => {
+                        write!(stdout, "{}", termion::cursor::Show).unwrap();
+                        break;
+                    }
+                    Event::Key(Key::Ctrl('z')) => {
+                        document.undo();
+                    }
+                    Event::Key(Key::Ctrl('y')) => {
+                        document.redo();
+                    }
+                    Event::Key(Key::Left) => {
+                        document.move_cursor_left();
+                    }
+                    Event::Key(Key::Right) => {
+                        document.move_cursor_right();
+                    }
+                    Event::Key(Key::Up) => {
+                        document.move_cursor_up();
+                    }
+                    Event::Key(Key::Down) => {
+                        document.move_cursor_down();
+                    }
+                    Event::Key(Key::Backspace) => {
+                        handle_backspace(document, highlight_start,  highlight_current);
+                    }
+                    Event::Key(Key::Delete) => {
+                        handle_delete(document, highlight_start, highlight_current);
+                    }
+                    Event::Key(Key::Char(ch)) => {
+                        handle_char(document, ch, highlight_start, highlight_current);
+                    }
+                    Event::Mouse(me) => {
+                        match me {
+                            MouseEvent::Press(MouseButton::Left, x, y) => {
+                                highlight_current = None;
+                                document.set_cursor_from_mouse_pos(&mut (x, y));
+                                highlight_start = Some(document.get_cursor().to_owned());
+                            }
+                            MouseEvent::Press(MouseButton::WheelDown, x, y) => {
+                                if !document.is_offset_saved(){
+                                    document.save_offset();
+                                }
+                                let document_offset = document.get_offset();
+                                document.set_offset((document_offset.0, min(document_offset.1 + 1, (document.get_num_lines() as isize - terminal_size().unwrap().1 as isize).abs() as usize)));
+                                write!(stdout, "{}", termion::cursor::Hide).unwrap();
+                            }
+                            MouseEvent::Press(MouseButton::WheelUp, x, y) => {
+                                if !document.is_offset_saved(){
+                                    document.save_offset();
+                                }
+                                let document_offset = document.get_offset();
+                                if document_offset.1 == 0{
+                                
+                                }else{
+                                    document.set_offset((document_offset.0, document_offset.1 - 1));
+                                    write!(stdout, "{}", termion::cursor::Hide).unwrap();
+                                }
+                            }
+                            MouseEvent::Hold(x, y) => {
+                                document.set_cursor_from_mouse_pos(&mut (x, y));
+                                if highlight_start.as_ref().unwrap() != document.get_cursor(){
+                                    highlight_current = Some(document.get_cursor().to_owned());
+                                }
+                            }
+                            _ => {}
                         }
                     }
                     _ => {}
                 }
-            }
-            _ => {}
-        }
+                
+                match event{
+                    Event::Mouse(me) => {
+                        match me {
+                            MouseEvent::Press(MouseButton::Left, _x, _y) => {
+                                write!(stdout, "{}", termion::cursor::Show).unwrap();
+                                document.save_offset();
+                            }
+                            MouseEvent::Hold(_x, _y) => {
+                                document.save_offset();
+                            }
+                            _ => {}
+                        }
+                    }
+                    _ => {
+                        highlight_current = None;
+                        highlight_start = None;
+                        if document.is_offset_saved(){
+                            document.reset_offset();
+                            write!(stdout, "{}", termion::cursor::Show).unwrap();
+                        }
+                    }
+                }
         
-        match event{
-            Event::Mouse(_me) => {}
-            _ => {
-                highlight_current = None;
-                highlight_start = None;
-            }            
-        }
-
-        if highlight_start.is_some() && highlight_current.is_some(){
-            let first_index = get_text_index_display(document.get_text_with_offset(), highlight_start.as_ref().unwrap());
-            let second_index = get_text_index_display(document.get_text_with_offset(), highlight_current.as_ref().unwrap());
-            update(stdout, document, (first_index, second_index));
-        }else{
-            update(stdout, document, (0,0));
+                if highlight_start.is_some() && highlight_current.is_some(){
+                    let first_index = get_text_index_display(document.get_text_with_offset(), highlight_start.as_ref().unwrap());
+                    let second_index = get_text_index_display(document.get_text_with_offset(), highlight_current.as_ref().unwrap());
+                    update(stdout, document, (first_index, second_index));
+                }else{
+                    update(stdout, document, (0,0));
+                }
+            }
+            Err(_) => {}
         }
     }
 }
@@ -230,14 +297,29 @@ fn handle_char(document: &mut Document, ch: char, highlight_start: Option<Cursor
         document.push_to_undo_redo(ReversableFunction::new(
             Funcs::Insert, 
             idx, 
-            ch.to_string(),
+            {
+            if ch != '\t'{
+                ch.to_string()
+            }else{
+                "    ".to_string()
+            }
+            },
             document.get_cursor().to_owned()
         ));
-        document.insert(idx, ch.to_string());
+        if ch == '\t'{
+            document.insert(idx, "    ".to_string());
+        }else{
+            document.insert(idx, ch.to_string());
+        }
+        document.recalculate_line_lenghts();
         if ch == '\n'{
-            document.recalculate_line_lenghts();
             document.get_cursor_mut().set_max_newline();
             document.move_cursor_down();
+        }
+        else if ch == '\t'{
+            for _i in 0..4{
+                document.move_cursor_right();
+            }
         }
         else{
             document.move_cursor_right();
@@ -268,7 +350,7 @@ fn remove_chunk(document: &mut Document, chunk_start: Option<CursorPos>, chunk_e
     if start_index > end_index{
 
     }else{
-        for i in 0..str.len(){
+        for _i in 0..str.len(){
             document.move_cursor_left();
         }
     }

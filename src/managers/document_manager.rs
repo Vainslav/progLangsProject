@@ -124,12 +124,14 @@ impl Document {
         self.text.update_offset(&old_cursor);
     }
 
-    pub fn set_cursor_from_mouse_pos(&mut self, mouse: (u16, u16)){
+    pub fn set_cursor_from_mouse_pos(&mut self, mouse: &mut (u16, u16)){
         let offset = self.text.get_offset();
+        let line_length = self.text.get_line_length(mouse.1 as usize + offset.1 - 1) as u16;
         let cursor = self.text.get_cursor_mut();
+        mouse.0 = std::cmp::min(mouse.0, line_length + 1);
         cursor.set_x_display(mouse.0);
         cursor.set_y_display(mouse.1);
-        cursor.set_x_actual(mouse.0 as usize + offset.0);
+        cursor.set_x_actual(std::cmp::min(mouse.0 as usize + offset.0, (line_length + 1) as usize));
         cursor.set_y_actual(mouse.1 as usize + offset.1);
     }
 
@@ -139,5 +141,21 @@ impl Document {
 
     pub fn set_cursor(&mut self, cursor: CursorPos){
         self.text.set_cursor(cursor);
+    }
+
+    pub fn set_offset(&mut self, offset: (usize, usize)){
+        self.text.set_offset(offset);
+    }
+
+    pub fn save_offset(&mut self){
+        self.text.save_offset();
+    }
+
+    pub fn reset_offset(&mut self){
+        self.text.reset_offset();
+    }
+
+    pub fn is_offset_saved(&self) -> bool{
+        self.text.is_offset_saved()
     }
 }

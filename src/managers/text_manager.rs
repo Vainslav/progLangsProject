@@ -18,7 +18,8 @@ pub struct TextManager{
     lines_manager: LinesManager,
     cursor: CursorPos,
     undo_redo: UndoRedoManager,
-    offset: (usize, usize)
+    offset: (usize, usize),
+    saved_offset: Option<(usize,usize)>
 }
 
 
@@ -34,6 +35,7 @@ impl TextManager{
             cursor: CursorPos::new(1, 1),
             undo_redo: UndoRedoManager::new(),
             offset: (0, 0),
+            saved_offset: None
         })
     }
 
@@ -76,6 +78,7 @@ impl TextManager{
     pub fn get_num_lines(&self) -> usize{
         self.lines_manager.get_num_lines()
     }
+
 
     pub fn undo(&mut self){
         let function = self.undo_redo.undo();
@@ -121,7 +124,7 @@ impl TextManager{
             self.lines_manager.recalculate_line_lenghts(self.text.get_text());
             match reversable_function.get_func() {
                 Funcs::Remove => {
-                    for i in 0..reversable_function.get_string().len(){
+                    if reversable_function.get_string().len() == 1{
                         self.cursor.dec_x();
                     }
                 }
@@ -224,5 +227,24 @@ impl TextManager{
 
     pub fn set_cursor(&mut self, cursor: CursorPos){
         self.cursor = cursor
+    }
+
+    pub fn set_offset(&mut self, offset: (usize, usize)){
+        self.offset = offset
+    }
+
+    pub fn save_offset(&mut self){
+        self.saved_offset = Some(self.offset)
+    }
+
+    pub fn reset_offset(&mut self){
+        if self.saved_offset.is_some(){
+            self.offset = self.saved_offset.unwrap();
+            self.saved_offset = None;
+        }
+    }
+
+    pub fn is_offset_saved(&self) -> bool{
+        self.saved_offset.is_some()
     }
 }
