@@ -17,6 +17,9 @@ use termion::input::TermRead;
 use termion::raw::RawTerminal;
 use termion::terminal_size;
 
+use clipboard::ClipboardProvider;
+use clipboard::ClipboardContext;
+
 use std::io::Stdout;
 use std::io::Write;
 
@@ -50,6 +53,8 @@ fn update(stdout: &mut MouseTerminal<RawTerminal<Stdout>>, document: &mut Docume
 pub fn run(stdout: &mut MouseTerminal<RawTerminal<Stdout>>, document: &mut Document){
     update(stdout, document, (0,0));
     let mut _last_terminal_size = terminal_size().unwrap();
+
+    let mut ctx: ClipboardContext = ClipboardProvider::new().unwrap();
 
     let mut highlight_start: Option<CursorPos> = None;
     let mut highlight_current: Option<CursorPos> = None;
@@ -93,6 +98,13 @@ pub fn run(stdout: &mut MouseTerminal<RawTerminal<Stdout>>, document: &mut Docum
                         write!(stdout, "{}", termion::cursor::Show).unwrap();
                         break;
                     }
+                    Event::Key(Key::Ctrl('c')) => {
+                        if highlight_start.is_some() && highlight_current.is_some(){
+                            let first_index = get_text_index_display(document.get_all_text(), highlight_start.as_ref().unwrap());
+                            let second_index = get_text_index_display(document.get_all_text(), highlight_current.as_ref().unwrap());
+                            ctx.set_contents(document.get_all_text().chars().skip(first_index).take(second_index - first_index).collect()).unwrap();
+                        }
+                    }
                     Event::Key(Key::Ctrl('z')) => {
                         document.undo();
                     }
@@ -127,7 +139,7 @@ pub fn run(stdout: &mut MouseTerminal<RawTerminal<Stdout>>, document: &mut Docum
                                 document.set_cursor_from_mouse_pos(&mut (x, y));
                                 highlight_start = Some(document.get_cursor().to_owned());
                             }
-                            MouseEvent::Press(MouseButton::WheelDown, x, y) => {
+                            MouseEvent::Press(MouseButton::WheelDown, _x, _y) => {
                                 if !document.is_offset_saved(){
                                     document.save_offset();
                                 }
@@ -135,7 +147,7 @@ pub fn run(stdout: &mut MouseTerminal<RawTerminal<Stdout>>, document: &mut Docum
                                 document.set_offset((document_offset.0, min(document_offset.1 + 1, (document.get_num_lines() as isize - terminal_size().unwrap().1 as isize).abs() as usize)));
                                 write!(stdout, "{}", termion::cursor::Hide).unwrap();
                             }
-                            MouseEvent::Press(MouseButton::WheelUp, x, y) => {
+                            MouseEvent::Press(MouseButton::WheelUp, _x, _y) => {
                                 if !document.is_offset_saved(){
                                     document.save_offset();
                                 }
@@ -160,6 +172,12 @@ pub fn run(stdout: &mut MouseTerminal<RawTerminal<Stdout>>, document: &mut Docum
                 }
                 
                 match event{
+                    Event::Key(Key::Ctrl('c')) => {
+                        if document.is_offset_saved(){
+                            document.reset_offset();
+                            write!(stdout, "{}", termion::cursor::Show).unwrap();
+                        }
+                    }
                     Event::Mouse(me) => {
                         match me {
                             MouseEvent::Press(MouseButton::Left, _x, _y) => {
@@ -169,7 +187,11 @@ pub fn run(stdout: &mut MouseTerminal<RawTerminal<Stdout>>, document: &mut Docum
                             MouseEvent::Hold(_x, _y) => {
                                 document.save_offset();
                             }
-                            _ => {}
+                            MouseEvent::Release(_x, _y) => {}
+                            _ => {
+                                highlight_current = None;
+                                highlight_start = None;
+                            }
                         }
                     }
                     _ => {
