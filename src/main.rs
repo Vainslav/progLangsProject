@@ -10,19 +10,20 @@ use modes::mode_manager::ModeManager;
 
 use std::env::args;
 
-fn main() -> Result<(), String>{
+fn main(){
     let args: Vec<String> = args().collect();
+    let mut file: String;
     if args.len() != 2{
-        Err("File not specified".to_string())?;
+        file = choose_file::choose_file();
+    }else{
+        file = args[1].clone();
     }
 
     let command_reciever = get_event_reviever();
 
-    let mut document_manager = Document::new(args[1].clone());
+    let mut document_manager = Document::new(file);
 
     let mut modes = ModeManager::new();
     modes.run(&mut document_manager, command_reciever);
-
-    Ok(())
 }
  
