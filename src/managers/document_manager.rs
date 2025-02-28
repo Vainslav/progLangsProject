@@ -1,4 +1,4 @@
-use crate::util::reversable_function::ReversableFunction;
+use crate::util::functions::Function;
 
 use super::{cursor_manager::CursorPos, text_manager::TextManager};
 use std::process::exit;
@@ -86,7 +86,7 @@ impl Document {
         self.recalculate_line_lenghts();
     }
 
-    pub fn push_to_undo_redo(&mut self, func: ReversableFunction){
+    pub fn push_to_undo_redo(&mut self, func: Function){
         self.text.push_to_undo_redo(func);
     }
 

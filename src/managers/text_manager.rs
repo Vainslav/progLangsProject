@@ -7,8 +7,8 @@ use termion::terminal_size;
 use crate::util::piece_table::PieceTable;
 use crate::managers::lines_manager::LinesManager;
 use crate::managers::undo_redo_manager::UndoRedoManager;
-use crate::util::reversable_function::Funcs;
-use crate::util::reversable_function::ReversableFunction;
+use crate::util::functions::Funcs;
+use crate::util::functions::Function;
 use crate::util::string_util::remove_prefix_and_update_lines;
 
 use super::cursor_manager::CursorPos;
@@ -94,6 +94,7 @@ impl TextManager{
                 Funcs::Delete => {
                     self.text.insert(*reversable_function.get_index(), reversable_function.get_string().to_owned());
                 }
+                _ => {}
             }
             self.cursor.set_x_actual(reversable_function.get_cursor().get_x_actual());
             self.cursor.set_y_actual(reversable_function.get_cursor().get_y_actual());
@@ -116,6 +117,7 @@ impl TextManager{
                 Funcs::Delete => {
                     self.text.remove(*reversable_function.get_index(), reversable_function.get_string().chars().count());
                 }
+                _ => {}
             }
             self.cursor.set_x_actual(reversable_function.get_cursor().get_x_actual());
             self.cursor.set_y_actual(reversable_function.get_cursor().get_y_actual());
@@ -133,7 +135,7 @@ impl TextManager{
         }
     }
 
-    pub fn push_to_undo_redo(&mut self, func: ReversableFunction){
+    pub fn push_to_undo_redo(&mut self, func: Function){
         self.undo_redo.push(func);
     }
 

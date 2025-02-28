@@ -4,14 +4,14 @@ enum Buffer{
     Add
 }
 
-struct Atributes{
+struct _Atributes{
     is_italic: bool,
     is_bold: bool,
 }
 
-struct char_with_attributes{
+struct _CharWithAttributes{
     char: char,
-    atributes: Atributes
+    atributes: _Atributes
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -203,11 +203,11 @@ impl PieceTable{
         Some(deleted_str)
     }
 
-    pub fn push(&mut self, text: String){
+    pub fn _push(&mut self, text: String){
         self.insert(self.length, text);
     }
 
-    pub fn pop(&mut self){
+    pub fn _pop(&mut self){
         let pieces_len = self.pieces.len();
         self.pieces[pieces_len - 1].length -= 1;
         if self.pieces[pieces_len - 1].length == 0{

@@ -1,7 +1,7 @@
-use crate::util::reversable_function::ReversableFunction;
+use crate::util::functions::{Funcs, Function};
 
 pub struct UndoRedoManager{
-    stack: Vec<ReversableFunction>,
+    stack: Vec<Function>,
     pointer: i64
 }
 
@@ -13,7 +13,10 @@ impl UndoRedoManager{
         }
     }
 
-    pub fn push(&mut self, func: ReversableFunction){
+    pub fn push(&mut self, func: Function){
+        if *func.get_func() == Funcs::Exit{
+            return;
+        }
         if self.stack.len() != 0 && self.pointer != (self.stack.len() - 1) as i64{
             while self.pointer + 1 < self.stack.len() as i64{
                 if self.stack.pop().is_none(){
@@ -25,7 +28,7 @@ impl UndoRedoManager{
         self.pointer = (self.stack.len() - 1) as i64;
     }
 
-    pub fn undo(&mut self) -> Option<&ReversableFunction>{
+    pub fn undo(&mut self) -> Option<&Function>{
         if self.pointer == (self.stack.len() - 1) as i64{
             self.pointer -= 1;
             return self.stack.last()
@@ -38,7 +41,7 @@ impl UndoRedoManager{
         }
     }
 
-    pub fn redo(&mut self) -> Option<&ReversableFunction>{
+    pub fn redo(&mut self) -> Option<&Function>{
         if self.pointer == (self.stack.len() - 1) as i64{
             return None
         }else if self.stack.len() != 0 && self.pointer < (self.stack.len() - 1) as i64{

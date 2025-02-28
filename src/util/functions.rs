@@ -5,18 +5,19 @@ pub enum Funcs{
     Insert,
     Remove,
     Delete,
+    Exit,
 }
 
-pub struct ReversableFunction{
+pub struct Function{
     func: Funcs,
     index: usize,
     string: String,
     cursor: CursorPos,
 }
 
-impl ReversableFunction {
-    pub fn new(fun: Funcs, idx: usize, str: String, cursor: CursorPos) -> ReversableFunction{
-        ReversableFunction{
+impl Function {
+    pub fn new(fun: Funcs, idx: usize, str: String, cursor: CursorPos) -> Function{
+        Function{
             func: fun,
             index: idx,
             string: str,

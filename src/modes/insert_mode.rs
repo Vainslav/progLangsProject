@@ -1,19 +1,14 @@
-use std::io::stdin;
 use std::cmp::min;
 use std::cmp::max;
 
+use std::sync::mpsc::Receiver;
+use std::sync::MutexGuard;
 
-use std::thread;
-use std::sync::mpsc;
-use std::time::Duration;
-
-use termion::event;
 use termion::event::Event;
 use termion::event::Key;
 use termion::event::MouseButton;
 use termion::event::MouseEvent;
 use termion::input::MouseTerminal;
-use termion::input::TermRead;
 use termion::raw::RawTerminal;
 use termion::terminal_size;
 use termion::screen::AlternateScreen;
@@ -25,8 +20,8 @@ use std::io::Stdout;
 use std::io::Write;
 
 use crate::managers::document_manager::Document;
-use crate::util::reversable_function::ReversableFunction;
-use crate::util::reversable_function::Funcs;
+use crate::util::functions::Function;
+use crate::util::functions::Funcs;
 use crate::managers::cursor_manager::CursorPos;
 
 fn update(stdout: &mut AlternateScreen<MouseTerminal<RawTerminal<Stdout>>>, document: &mut Document, coloring: (usize, usize)){
@@ -51,7 +46,7 @@ fn update(stdout: &mut AlternateScreen<MouseTerminal<RawTerminal<Stdout>>>, docu
     stdout.flush().unwrap();
 }
 
-pub fn run(stdout: &mut AlternateScreen<MouseTerminal<RawTerminal<Stdout>>>, document: &mut Document){
+pub fn run(stdout: &mut AlternateScreen<MouseTerminal<RawTerminal<Stdout>>>, document: &mut Document, command_receiever: MutexGuard<'static, Receiver<Event>,>){
     update(stdout, document, (0,0));
     let mut _last_terminal_size = terminal_size().unwrap();
 
@@ -61,19 +56,6 @@ pub fn run(stdout: &mut AlternateScreen<MouseTerminal<RawTerminal<Stdout>>>, doc
     let mut highlight_current: Option<CursorPos> = None;
 
     let mut window_size = terminal_size().unwrap();
-    
-    let (tx, rx) = mpsc::channel::<Event>();
-
-    thread::spawn(move || {
-        let mut events = stdin().events();
-
-        loop{
-            let event = events.next()
-            .map(|result| result.unwrap_or(Event::Unsupported(Vec::new())))
-            .unwrap_or(Event::Unsupported(Vec::new()));
-            tx.send(event).unwrap()
-        }
-    });
 
     loop{
         if window_size != terminal_size().unwrap(){
@@ -87,7 +69,7 @@ pub fn run(stdout: &mut AlternateScreen<MouseTerminal<RawTerminal<Stdout>>>, doc
             }
         }
 
-        match rx.try_recv(){
+        match command_receiever.try_recv(){
             Ok(event) => {
                 match event {
                     Event::Key(Key::Ctrl('q')) => {
@@ -101,8 +83,11 @@ pub fn run(stdout: &mut AlternateScreen<MouseTerminal<RawTerminal<Stdout>>>, doc
                     }
                     Event::Key(Key::Ctrl('c')) => {
                         if highlight_start.is_some() && highlight_current.is_some(){
-                            let first_index = get_text_index_display(document.get_all_text(), highlight_start.as_ref().unwrap());
-                            let second_index = get_text_index_display(document.get_all_text(), highlight_current.as_ref().unwrap());
+                            let mut first_index = get_text_index_display(document.get_all_text(), highlight_start.as_ref().unwrap());
+                            let mut second_index = get_text_index_display(document.get_all_text(), highlight_current.as_ref().unwrap());
+                            let tmp = max(first_index, second_index);
+                            first_index = min(first_index, second_index);
+                            second_index = tmp;
                             ctx.set_contents(document.get_all_text().chars().skip(first_index).take(second_index - first_index).collect()).unwrap();
                         }
                     }
@@ -132,6 +117,7 @@ pub fn run(stdout: &mut AlternateScreen<MouseTerminal<RawTerminal<Stdout>>>, doc
                     }
                     Event::Key(Key::Char(ch)) => {
                         handle_char(document, ch, highlight_start, highlight_current);
+
                     }
                     Event::Mouse(me) => {
                         match me {
@@ -279,7 +265,7 @@ fn handle_backspace(document: &mut Document, highlight_start: Option<CursorPos>,
 
     document.recalculate_line_lenghts();
 
-    document.push_to_undo_redo(ReversableFunction::new(
+    document.push_to_undo_redo(Function::new(
         Funcs::Remove, 
         idx, 
         str,
@@ -301,7 +287,7 @@ fn handle_delete(document: &mut Document, highlight_start: Option<CursorPos>, hi
     }
 
     let str = document.remove(idx, 1);
-    document.push_to_undo_redo(ReversableFunction::new(
+    document.push_to_undo_redo(Function::new(
         Funcs::Delete,
         idx,
         str,
@@ -317,7 +303,7 @@ fn handle_char(document: &mut Document, ch: char, highlight_start: Option<Cursor
     let idx = get_text_index(document.get_all_text(), document.get_cursor());
     if idx > document.get_length(){}
     else{
-        document.push_to_undo_redo(ReversableFunction::new(
+        document.push_to_undo_redo(Function::new(
             Funcs::Insert, 
             idx, 
             {
@@ -382,7 +368,7 @@ fn remove_chunk(document: &mut Document, chunk_start: Option<CursorPos>, chunk_e
 
     document.set_cursor(old_cursor.to_owned());
 
-    document.push_to_undo_redo(ReversableFunction::new(
+    document.push_to_undo_redo(Function::new(
         Funcs::Remove,
         idx,
         str,
