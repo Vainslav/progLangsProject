@@ -1,3 +1,5 @@
+# [Ссылка на сервер](https://github.com/Vainslav/textEditorServer/tree/main)
+
 # progLangsProject
 Редактор текста на языке Rust.
 
