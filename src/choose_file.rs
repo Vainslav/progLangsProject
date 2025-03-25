@@ -11,8 +11,6 @@ fn update(stdout: &mut MouseTerminal<termion::raw::RawTerminal<std::io::Stdout>>
     let mut dirs:Vec<String> = vec![];
     let mut files: Vec<String> = vec![];
 
-    print!("{}",cur_path);
-
     std::fs::read_dir(cur_path).unwrap().skip(number_of_skips).take(terminal_size.1 as usize - 2).for_each(|path| {
         let path_unwraped = path.unwrap();
         if path_unwraped.file_type().unwrap().is_dir(){
@@ -71,7 +69,10 @@ pub fn choose_file() -> String{
                             };
                         }else{
                             let vec = read_dir_into_sorted_vec(&cur_dir.to_owned().unwrap().into_os_string().into_string().unwrap());
-                            let file = vec.iter().skip(number_of_skips + y as usize - 2).peekable().peek().unwrap().to_owned();
+                            let file = match vec.iter().skip(number_of_skips + y as usize - 2).peekable().peek(){
+                                Some(dir) => dir.to_owned(),
+                                None => continue,
+                            };
                             if file.file_type().unwrap().is_dir(){
                                 cur_dir = Some(file.path());
                             }else{
