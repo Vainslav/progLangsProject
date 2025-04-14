@@ -17,11 +17,11 @@ use std::io::stdin;
 
 use std::sync::mpsc::Receiver;
 
-fn update(stdout: &mut AlternateScreen<MouseTerminal<RawTerminal<Stdout>>>, document: &mut Document) {
+fn _update(stdout: &mut AlternateScreen<MouseTerminal<RawTerminal<Stdout>>>, document: &mut Document) {
     
 }
 
-pub fn run(stdout: &mut AlternateScreen<MouseTerminal<RawTerminal<Stdout>>>, document: &mut Document, command_receiever: MutexGuard<'static, Receiver<Event>,>){
+pub fn _run(stdout: &mut AlternateScreen<MouseTerminal<RawTerminal<Stdout>>>, document: &mut Document, command_receiever: MutexGuard<'static, Receiver<Event>,>){
     let mut window_size = terminal_size().unwrap();
 
     let (tx, rx) = mpsc::channel::<Event>();
@@ -41,7 +41,7 @@ pub fn run(stdout: &mut AlternateScreen<MouseTerminal<RawTerminal<Stdout>>>, doc
     loop{
         if window_size != terminal_size().unwrap(){
             window_size = terminal_size().unwrap();
-            update(stdout, document);
+            _update(stdout, document);
         }
 
         match rx.try_recv(){
