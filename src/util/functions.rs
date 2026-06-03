@@ -1,14 +1,14 @@
 use crate::managers::cursor_manager::CursorPos;
 
 #[derive(PartialEq)]
-pub enum Funcs{
+pub enum Funcs {
     Insert,
     Remove,
     Delete,
     Exit,
 }
 
-pub struct Function{
+pub struct Function {
     func: Funcs,
     index: usize,
     string: String,
@@ -16,8 +16,8 @@ pub struct Function{
 }
 
 impl Function {
-    pub fn new(fun: Funcs, idx: usize, str: String, cursor: CursorPos) -> Function{
-        Function{
+    pub fn new(fun: Funcs, idx: usize, str: String, cursor: CursorPos) -> Function {
+        Function {
             func: fun,
             index: idx,
             string: str,
@@ -25,19 +25,19 @@ impl Function {
         }
     }
 
-    pub fn get_cursor(&self) -> &CursorPos{
+    pub fn get_cursor(&self) -> &CursorPos {
         &self.cursor
     }
 
-    pub fn get_index(&self) -> &usize{
+    pub fn get_index(&self) -> &usize {
         &self.index
     }
 
-    pub fn get_func(&self) -> &Funcs{
+    pub fn get_func(&self) -> &Funcs {
         &self.func
     }
 
-    pub fn get_string(&self) -> &String{
+    pub fn get_string(&self) -> &String {
         &self.string
     }
 }
