@@ -1,7 +1,7 @@
 # progLangsProject
 Rust text editor
 
-# Howw to run
+# How to run
 1. Git clone
 2. cargo run (choose a file with a mouse)
 
